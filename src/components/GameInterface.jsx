@@ -37,6 +37,24 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Set fixed joystick center for mobile
+  useEffect(() => {
+    if (isMobile && gameContainerRef.current) {
+      const updateJoystickPosition = () => {
+        const container = gameContainerRef.current;
+        const centerX = joystickRadius + 40;
+        const centerY = container.offsetHeight - joystickRadius - 40;
+        setJoystickCenter({ x: centerX, y: centerY });
+        setThumbPos({ x: centerX, y: centerY });
+      };
+
+      updateJoystickPosition();
+      window.addEventListener('resize', updateJoystickPosition);
+      
+      return () => window.removeEventListener('resize', updateJoystickPosition);
+    }
+  }, [isMobile]);
+
   // Initialize player position based on container size
   useEffect(() => {
     if (gameContainerRef.current) {
@@ -153,12 +171,28 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
       if (x > rect.width / 2) {
         // Right side: interact
         checkInteraction();
-      } else {
-        // Left side: activate joystick
-        setJoystickCenter({ x, y });
-        setThumbPos({ x, y });
+        return;
+      }
+
+      // Check distance to fixed joystick center
+      const deltaX = x - joystickCenter.x;
+      const deltaY = y - joystickCenter.y;
+      const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
+
+      if (distance < joystickRadius * 1.5) { // Activate if touch near joystick
         setJoystickActive(true);
-        setJoystickVector({ x: 0, y: 0 });
+
+        // Clamp to radius
+        let thumbDeltaX = deltaX;
+        let thumbDeltaY = deltaY;
+        let magnitude = distance;
+        if (magnitude > joystickRadius) {
+          thumbDeltaX = (deltaX / magnitude) * joystickRadius;
+          thumbDeltaY = (deltaY / magnitude) * joystickRadius;
+        }
+
+        setThumbPos({ x: joystickCenter.x + thumbDeltaX, y: joystickCenter.y + thumbDeltaY });
+        setJoystickVector({ x: thumbDeltaX / joystickRadius, y: thumbDeltaY / joystickRadius });
       }
     };
 
@@ -188,6 +222,7 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
       e.preventDefault();
       setJoystickActive(false);
       setJoystickVector({ x: 0, y: 0 });
+      setThumbPos({ x: joystickCenter.x, y: joystickCenter.y });
     };
 
     const container = gameContainerRef.current;
@@ -1069,7 +1104,7 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
         <div id="player" ref={playerRef}></div>
         
         {/* Joystick visuals */}
-        {joystickActive && (
+        {isMobile && showMobileControls && (
           <>
             <div className="joystick-base" style={{ left: `${joystickCenter.x - joystickRadius}px`, top: `${joystickCenter.y - joystickRadius}px` }} />
             <div className="joystick-thumb" style={{ left: `${thumbPos.x}px`, top: `${thumbPos.y}px` }} />
