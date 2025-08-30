@@ -20,12 +20,11 @@ export default defineConfig({
         "default-src 'self' https://api.coingecko.com",
         "font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com",
         "img-src 'self' data: https://pbs.twimg.com",
-        "object-src 'self'",  // Explicitly allow same-origin PDFs in <object>
-        "frame-src 'self' https://docs.google.com https://*.googleusercontent.com https://drive.google.com"  // Allow Google Docs Viewer and related domains for <ifram
+        "object-src 'self'",
+        "frame-src 'self' https://docs.google.com https://*.googleusercontent.com https://drive.google.com"
       ],
       styleDirective: {
-        resources: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"]
-       
+        resources: ["'self'", "https://fonts.googleapis.com"]
       }
     }
   },

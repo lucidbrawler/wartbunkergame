@@ -1,15 +1,14 @@
 // GameInterface.jsx
 import React, { useRef, useEffect, useState } from 'react';
-import fortress from '../images/wartbunker.svg';
-import bunkersendtx from '../images/bunkersendtx.png';
-import nodetower from '../images/nodetower.png';
-import validatealter from '../images/validateaddress.svg';
+import './GameInterface.css';
 
 const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenDownloadWallet }) => {
   const keys = useRef({});
   const playerRef = useRef(null);
   const gameContainerRef = useRef(null);
   const positionRef = useRef({ x: 380, y: 280 });
+  const baseRef = useRef(null);
+  const thumbRef = useRef(null);
   const [copied, setCopied] = useState(false);
   const [hoveredCounter, setHoveredCounter] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -54,6 +53,18 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
       return () => window.removeEventListener('resize', updateJoystickPosition);
     }
   }, [isMobile]);
+
+  // Update joystick visuals
+  useEffect(() => {
+    if (baseRef.current) {
+      baseRef.current.style.left = `${joystickCenter.x - joystickRadius}px`;
+      baseRef.current.style.top = `${joystickCenter.y - joystickRadius}px`;
+    }
+    if (thumbRef.current) {
+      thumbRef.current.style.left = `${thumbPos.x}px`;
+      thumbRef.current.style.top = `${thumbPos.y}px`;
+    }
+  }, [joystickCenter, thumbPos, joystickRadius]);
 
   // Initialize player position based on container size
   useEffect(() => {
@@ -402,724 +413,42 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
       )}
 
       <div id="game-container" ref={gameContainerRef}>
-        <style>{`
-          .game-instructions {
-            text-align: center;
-            margin-bottom: 20px;
-            padding: 15px;
-            background: rgba(26, 26, 46, 0.9);
-            border: 2px solid #FFC107;
-            border-radius: 8px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-          }
-          
-          .instruction-text {
-            color: #FFC107;
-            font-size: 16px;
-            font-weight: bold;
-            font-family: 'Montserrat', sans-serif;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-          }
-
-
-
-          .mobile-control-toggle {
-            background: rgba(255, 193, 7, 0.2);
-            border: 1px solid #FFC107;
-            color: #FFC107;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s ease;
-          }
-
-          .mobile-controls {
-            position: fixed;
-            bottom: 30px;
-            right: 20px;
-            transform: none;
-            left: auto;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-
-          .control-btn {
-            width: 50px;
-            height: 50px;
-            background: rgba(26, 26, 46, 0.9);
-            border: 2px solid #FFC107;
-            color: #FFC107;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 20px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            user-select: none;
-            touch-action: manipulation;
-          }
-
-          .control-btn:active {
-            transform: scale(0.95);
-            background: rgba(255, 193, 7, 0.2);
-          }
-
-          .interact-btn {
-            width: 60px;
-            height: 60px;
-            font-size: 18px;
-          }
-
-          .joystick-base {
-            position: absolute;
-            width: ${joystickRadius * 2}px;
-            height: ${joystickRadius * 2}px;
-            border-radius: 50%;
-            background: rgba(255, 193, 7, 0.3);
-            z-index: 999;
-            pointer-events: none;
-          }
-
-          .joystick-thumb {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #FFC107;
-            transform: translate(-20px, -20px);
-            z-index: 999;
-            pointer-events: none;
-          }
-
-
-          
-          #game-container {
-            position: relative;
-            width: 100%;
-            max-width: 1200px;
-            height: 65vh;
-            min-height: 500px;
-            max-height: 700px;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            background-image: 
-              radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-              radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-              radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
-            border: 3px solid #FFC107;
-            border-radius: 8px;
-            margin: 0 auto;
-            overflow: hidden;
-            box-shadow: 
-              0 0 20px rgba(255, 193, 7, 0.3),
-              inset 0 0 50px rgba(0, 0, 0, 0.5);
-          }
-
-          @media (max-width: 768px) {
-            #game-container {
-              height: 60vh;
-              min-height: 450px;
-              max-height: 600px;
-              margin: 0 10px;
-            }
-
-            .game-instructions {
-              margin: 0 10px 20px 10px;
-            }
-
-            .instruction-text {
-              flex-direction: column;
-              gap: 15px;
-            }
-          }
-
-          @media (max-width: 480px) {
-          
-            .mobile-controls {
-              bottom: 10px;
-              gap: 5px;
-            }
-
-            .control-btn {
-              width: 40px;
-              height: 40px;
-              font-size: 16px;
-            }
-
-            .interact-btn {
-              width: 50px;
-              height: 50px;
-              font-size: 14px;
-            }
-
-
-            .left-btn {
-              left: 10px;
-            }
-
-            .right-btn {
-              right: 10px;
-            }
-
-            .top-btn {
-              top: 10px;
-            }
-
-            .bottom-btn {
-              bottom: 10px;
-            }
-
-            .hint {
-              padding: 2px 4px;
-              font-size: 10px;
-            }
-
-            .left-hint {
-              left: 10px;
-            }
-
-            .right-hint {
-              right: 10px;
-            }
-
-            .top-hint {
-              top: 10px;
-            }
-
-            .bottom-hint {
-              bottom: 10px;
-            }
-
-            .instruction-text {
-              font-size: 14px;
-            }
-
-            .mobile-control-toggle {
-              padding: 6px 12px;
-              font-size: 12px;
-            }
-          }
-
-          @media (min-width: 1200px) {
-            #game-container {
-              height: 70vh;
-              max-height: 800px;
-            }
-          }
-          
-          #player {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            color: #fff;
-            text-align: center;
-            line-height: 40px;
-            font-size: 12px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            padding: 0 5px;
-            box-sizing: border-box;
-            background-image: url('https://pbs.twimg.com/profile_images/1739991331252879360/HM1JGzf8.jpg');
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            background-color: transparent;
-            border-radius: 50%;
-            box-shadow: 0 0 10px rgba(255, 193, 7, 0.8);
-            transition: all 0.2s ease;
-            z-index: 10;
-          }
-          
-          #player:hover {
-            transform: scale(1.1);
-            box-shadow: 0 0 15px rgba(255, 193, 7, 1);
-          }
-          
-          .counter {
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            text-align: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
-          }
-          
-          .counter::before {
-            content: '';
-            position: absolute;
-            top: -15px;
-            left: -15px;
-            right: -15px;
-            bottom: -15px;
-            background: rgba(120, 119, 198, 0.08);
-            border-radius: 50%;
-            backdrop-filter: blur(20px);
-            z-index: -1;
-            transition: all 0.3s ease;
-          }
-          
-          .counter:hover::before,
-          .counter.interaction-zone::before {
-            background: rgba(120, 119, 198, 0.15);
-            transform: scale(1.1);
-          }
-          
-          .counter:hover,
-          .counter.interaction-zone {
-            transform: scale(1.05);
-            filter: brightness(1.1);
-          }
-          
-          .counter.interaction-zone {
-            animation: ambient-pulse 3s infinite;
-          }
-          
-          @keyframes ambient-pulse {
-            0%, 100% { 
-              box-shadow: 0 0 15px rgba(120, 119, 198, 0.2);
-            }
-            50% { 
-              box-shadow: 0 0 25px rgba(120, 119, 198, 0.4);
-            }
-          }
-          
-          #wallet-management {
-            width: 250px;
-            height: 120px;
-            background-image: url(${fortress.src});
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            background-color: transparent;
-            z-index: 5;
-          }
-          
-          #send-transaction {
-            width: 120px;
-            height: 120px;
-            background-image: url(${bunkersendtx.src});
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            background-color: transparent;
-            z-index: 5;
-          }
-          
-          #node-options {
-            width: 120px;
-            height: 120px;
-            background-image: url(${nodetower.src});
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            background-color: transparent;
-            z-index: 5;
-          }
-          
-          #validate-address {
-            width: 120px;
-            height: 120px;
-            background-image: url(${validatealter.src});
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            background-color: transparent;
-            z-index: 5;
-          }
-          
-          .sign-right {
-            position: absolute;
-            left: 75px;
-            top: 50%;
-            transform: translateY(-50%);
-            background-color: rgba(255, 193, 7, 0.9);
-            color: #1a1a2e;
-            padding: 4px 8px;
-            border: 1px solid rgba(255, 193, 7, 0.3);
-            border-radius: 4px;
-            white-space: nowrap;
-            font-size: 12px;
-            font-weight: bold;
-            z-index: 15;
-            backdrop-filter: blur(5px);
-          }
-          
-          .sign-right1 {
-            position: absolute;
-            left: 95px;
-            top: 50%;
-            transform: translateY(-50%);
-            background-color: rgba(255, 193, 7, 0.9);
-            color: #1a1a2e;
-            padding: 4px 8px;
-            border: 1px solid rgba(255, 193, 7, 0.3);
-            border-radius: 4px;
-            white-space: nowrap;
-            font-size: 12px;
-            font-weight: bold;
-            z-index: 15;
-            backdrop-filter: blur(5px);
-          }
-          
-          .sign-left {
-            position: absolute;
-            right: 100%;
-            margin-right: 5px;
-            top: 50%;
-            transform: translateY(-50%);
-            background-color: rgba(255, 193, 7, 0.9);
-            color: #1a1a2e;
-            padding: 4px 8px;
-            border: 1px solid rgba(255, 193, 7, 0.3);
-            border-radius: 4px;
-            white-space: nowrap;
-            font-size: 12px;
-            font-weight: bold;
-            z-index: 15;
-            backdrop-filter: blur(5px);
-          }
-
-          .sign-center {
-            position: absolute;
-            top: -40px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(255, 193, 7, 0.9);
-            color: #1a1a2e;
-            padding: 4px 8px;
-            border: 1px solid rgba(255, 193, 7, 0.3);
-            border-radius: 4px;
-            white-space: nowrap;
-            font-size: 12px;
-            font-weight: bold;
-            z-index: 15;
-            backdrop-filter: blur(5px);
-          }
-
-          /* Sector Navigation Hints */
-          .sector-hints {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            pointer-events: none;
-            z-index: 5;
-          }
-
-          .hint {
-            position: absolute;
-            background-color: rgba(255, 193, 7, 0.3);
-            color: rgba(255, 193, 7, 0.8);
-            padding: 3px 6px;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: bold;
-            backdrop-filter: blur(5px);
-            animation: hint-pulse 3s infinite;
-            opacity: 0.6;
-          }
-
-          .left-hint {
-            left: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-          }
-
-          .right-hint {
-            right: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-          }
-
-          .top-hint {
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-          }
-
-          .bottom-hint {
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-          }
-
-          @keyframes hint-pulse {
-            0%, 100% { opacity: 0.6; }
-            50% { opacity: 0.8; }
-          }
-
-          /* Sector Transition Buttons */
-          .sector-transitions {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            pointer-events: none;
-            z-index: 10;
-          }
-
-          .transition-btn {
-          max-width: 120px;
-            position: absolute;
-            background-color: rgba(255, 193, 7, 0.9);
-            color: #1a1a2e;
-            border: 2px solid rgba(255, 193, 7, 0.5);
-            border-radius: 8px;
-            padding: 8px 12px;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-            pointer-events: auto;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            white-space: nowrap;
-          }
-
-          .transition-btn:hover {
-            background-color: rgba(255, 193, 7, 1);
-            transform: scale(1.05);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-          }
-
-          .left-btn {
-            left: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-          }
-
-          .right-btn {
-            right: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-          }
-
-          .top-btn {
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-          }
-
-          .bottom-btn {
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-          }
-
-          /* Mobile-specific counter positioning */
-          @media (max-width: 768px) {
-            .counter {
-              width: 120px;
-              height: 120px;
-            }
-          }
-          
-          #hud {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(26, 26, 46, 0.9);
-            color: #FFC107;
-            padding: 10px;
-            border-radius: 4px;
-            border: 1px solid #FFC107;
-            font-family: 'Montserrat', sans-serif;
-            font-size: 14px;
-            z-index: 20;
-            backdrop-filter: blur(10px);
-          }
-          
-          #address-hud {
-            position: absolute;
-            top: 50px;
-            right: 10px;
-            background: rgba(26, 26, 46, 0.9);
-            color: #FFC107;
-            padding: 10px;
-            border-radius: 4px;
-            border: 1px solid #FFC107;
-            font-family: 'Montserrat', sans-serif;
-            font-size: 14px;
-            cursor: pointer;
-            z-index: 20;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-          }
-          
-          #address-hud:hover {
-            background: rgba(26, 26, 46, 0.95);
-            transform: scale(1.05);
-          }
-
-          #sector-hud {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(26, 26, 46, 0.95);
-            color: #FFC107;
-            padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid rgba(255, 193, 7, 0.6);
-            font-family: 'Courier New', monospace;
-            font-size: 11px;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 20;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-          }
-
-          .sector-label {
-            color: rgba(255, 193, 7, 0.7);
-            font-size: 9px;
-            letter-spacing: 1px;
-          }
-
-          .sector-number {
-            color: #FFC107;
-            font-size: 14px;
-            font-weight: 900;
-            text-shadow: 0 0 8px rgba(255, 193, 7, 0.5);
-          }
-
-          .sector-divider {
-            color: rgba(255, 193, 7, 0.6);
-            font-size: 10px;
-          }
-
-          .sector-total {
-            color: rgba(255, 193, 7, 0.6);
-            font-size: 10px;
-          }
-          
-          .modal {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(66, 63, 63, 0.95);
-            padding: 20px;
-            border: 2px solid #FFC107;
-            border-radius: 8px;
-            z-index: 1000;
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-            backdrop-filter: blur(10px);
-          }
-
-
-          
-          .form-group { 
-            margin-bottom: 10px; 
-          }
-          
-          .input { 
-            width: 100%; 
-            padding: 5px; 
-          }
-          
-          .error { 
-            color: #ff6b6b; 
-          }
-          
-          .result { 
-            background: #2d3748; 
-            padding: 10px; 
-            border-radius: 4px;
-            border: 1px solid #4a5568;
-          }
-          
-          .warning { 
-            color: #f6ad55; 
-          }
-          
-          .background-elements {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 0;
-          }
-          
-          .star {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: #FFC107;
-            border-radius: 50%;
-            animation: twinkle 3s infinite ease-in-out;
-            opacity: 0.7;
-          }
-          
-          .star:nth-child(odd) {
-            animation-delay: 1.5s;
-          }
-          
-          .star:nth-child(3n) {
-            animation-delay: 0.5s;
-          }
-          
-          @keyframes twinkle {
-            0%, 100% { opacity: 0.3; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.2); }
-          }
-        `}</style>
-        
         {/* Game Background Elements */}
         <div className="background-elements">
-          <div className="star" style={{ left: '50px', top: '100px' }}></div>
-          <div className="star" style={{ left: '150px', top: '200px' }}></div>
-          <div className="star" style={{ left: '250px', top: '150px' }}></div>
-          <div className="star" style={{ left: '350px', top: '300px' }}></div>
-          <div className="star" style={{ left: '450px', top: '100px' }}></div>
-          <div className="star" style={{ left: '550px', top: '250px' }}></div>
-          <div className="star" style={{ left: '650px', top: '180px' }}></div>
-          <div className="star" style={{ left: '700px', top: '400px' }}></div>
-          <div className="star" style={{ left: '100px', top: '450px' }}></div>
-          <div className="star" style={{ left: '200px', top: '500px' }}></div>
-          <div className="star" style={{ left: '400px', top: '450px' }}></div>
-          <div className="star" style={{ left: '500px', top: '500px' }}></div>
-          <div className="star" style={{ left: '600px', top: '450px' }}></div>
+          <div className="star star-1"></div>
+          <div className="star star-2"></div>
+          <div className="star star-3"></div>
+          <div className="star star-4"></div>
+          <div className="star star-5"></div>
+          <div className="star star-6"></div>
+          <div className="star star-7"></div>
+          <div className="star star-8"></div>
+          <div className="star star-9"></div>
+          <div className="star star-10"></div>
+          <div className="star star-11"></div>
+          <div className="star star-12"></div>
+          <div className="star star-13"></div>
         </div>
         
         {/* Player */}
         <div id="player" ref={playerRef}></div>
         
         {/* Joystick visuals */}
-        {isMobile && showMobileControls && (
+        {isMobile && showMobileControls && joystickActive && (
           <>
-            <div className="joystick-base" style={{ left: `${joystickCenter.x - joystickRadius}px`, top: `${joystickCenter.y - joystickRadius}px` }} />
-            <div className="joystick-thumb" style={{ left: `${thumbPos.x}px`, top: `${thumbPos.y}px` }} />
+            <div className="joystick-base" ref={baseRef} />
+            <div className="joystick-thumb" ref={thumbRef} />
           </>
         )}
         
-                {/* Room-based Counter Display */}
+        {/* Room-based Counter Display */}
         {isMobile ? (
           // Mobile: Show only current room's counter
           <>
             {currentRoom === 0 && (
               <div 
-                className={`counter ${hoveredCounter === 'wallet-management' ? 'interaction-zone' : ''}`} 
+                className={`counter ${hoveredCounter === 'wallet-management' ? 'interaction-zone' : ''} mobile-counter`} 
                 id="wallet-management" 
-                style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
               >
                 <div className="sign-center">Wallet Mgmt</div>
               </div>
@@ -1127,9 +456,8 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
             
             {currentRoom === 1 && (
               <div 
-                className={`counter ${hoveredCounter === 'node-options' ? 'interaction-zone' : ''}`} 
+                className={`counter ${hoveredCounter === 'node-options' ? 'interaction-zone' : ''} mobile-counter`} 
                 id="node-options" 
-                style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
               >
                 <div className="sign-center">Node Options</div>
               </div>
@@ -1137,9 +465,8 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
             
             {currentRoom === 2 && (
               <div 
-                className={`counter ${hoveredCounter === 'validate-address' ? 'interaction-zone' : ''}`} 
+                className={`counter ${hoveredCounter === 'validate-address' ? 'interaction-zone' : ''} mobile-counter`} 
                 id="validate-address" 
-                style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
               >
                 <div className="sign-center">Validate Addr</div>
               </div>
@@ -1147,9 +474,8 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
             
             {currentRoom === 3 && (
               <div 
-                className={`counter ${hoveredCounter === 'send-transaction' ? 'interaction-zone' : ''}`} 
+                className={`counter ${hoveredCounter === 'send-transaction' ? 'interaction-zone' : ''} mobile-counter`} 
                 id="send-transaction" 
-                style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
               >
                 <div className="sign-center">Send Tx</div>
               </div>
@@ -1193,7 +519,6 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
             <div 
               className={`counter ${hoveredCounter === 'wallet-management' ? 'interaction-zone' : ''}`} 
               id="wallet-management" 
-              style={{ left: '300px', bottom: '0px' }}
             >
               <div className="sign-left">Wallet Mgmt</div>
             </div>
@@ -1201,7 +526,6 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
             <div 
               className={`counter ${hoveredCounter === 'node-options' ? 'interaction-zone' : ''}`} 
               id="node-options" 
-              style={{ left: '350px', top: '10px' }}
             >
               <div className="sign-right1">Node Options</div>
             </div>
@@ -1209,7 +533,6 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
             <div 
               className={`counter ${hoveredCounter === 'validate-address' ? 'interaction-zone' : ''}`} 
               id="validate-address" 
-              style={{ left: '20px', top: '250px' }}
             >
               <div className="sign-right">Validate Addr</div>
             </div>
@@ -1217,7 +540,6 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
             <div 
               className={`counter ${hoveredCounter === 'send-transaction' ? 'interaction-zone' : ''}`} 
               id="send-transaction" 
-              style={{ right: '10px', top: '250px' }}
             >
               <div className="sign-center">Send Tx</div>
             </div>
@@ -1226,7 +548,6 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
               <div 
                 className={`counter ${hoveredCounter === 'download-wallet' ? 'interaction-zone' : ''}`} 
                 id="download-wallet" 
-                style={{ right: '10px', bottom: '0px' }}
               >
                 <div className="sign-left">Download Wallet</div>
               </div>
