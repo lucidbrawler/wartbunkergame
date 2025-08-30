@@ -1,0 +1,111 @@
+---
+import ContentDiv from "../components/ContentDiv.jsx";
+---
+
+<style>
+    .ChainContributorsGrid {
+        flex-wrap: wrap;
+        display: flex;
+        justify-content: space-around;
+        padding: 1rem;
+    }
+    @media (max-width: 1024px) {
+        .ChainContributorsGrid {
+            flex-wrap: wrap;
+            display: flex;
+            justify-content: space-around;
+            padding: 1rem;
+            padding-left: 1rem;
+        }
+        .contributorsT {
+            padding-top: 2rem;
+        }
+    }
+    @media (max-width: 1324px) {
+        .contributorsT {
+            padding-top: 2rem;
+        }
+    }
+    p {
+        font-weight: 200;
+        font-style: bold;
+        padding-left: 0.5rem;
+    }
+    ul {
+        padding: 0.5rem;
+        display: flex;
+    }
+    h1 {
+        padding: 0.5rem;
+        font-size: 2.3rem;
+    }
+    .contributors {
+        flex-wrap: wrap;
+        font-weight: 250;
+        font-style: italic;
+        padding-top: 1rem;
+        display: flex;
+    }
+
+    .youcanhelp {
+        max-width: 21rem;
+        font-size: 0.8rem;
+    }
+    p {
+        margin-left: 2rem;
+    }
+    th {
+        padding: 0.5rem;
+    }
+    td {
+        padding: 0.5rem;
+        outline: 0.5px solid black;
+    }
+    .tableTitle {
+        font-size: 2rem;
+        padding: 1rem;
+    }
+</style>
+
+  <ContentDiv>
+<div class="ChainContributorsGrid">
+    <section>
+        <h1>Chain Specs</h1>
+
+        <table>
+            <tr><td>COIN UNIT</td><td>1 WART</td></tr>
+            <tr><td>BLOCK TIME</td><td>20 SECONDS</td></tr>
+            <tr><td>REWARD</td><td>1.5 WART</td></tr>
+            <tr><td>PRECISION</td><td>.00000001 WART (8 digits)</td></tr>
+            <tr><td>HALVING</td><td>~ EVERY 2 YEARS</td></tr>
+            <tr><td>SUPPLY</td><td>18921599.68464 (~19M)</td></tr>
+            <tr
+                ><td>WART DIF. ADJUSTMENT</td><td>EVERY 8640 BLOCKS (2 days)</td
+                ></tr
+            >
+        </table>
+    </section>
+    <section>
+        <h1 class="contributorsT">Contributors</h1>
+        <div class="contributors">
+            <div>
+                <ul>Pumbaa, Rafiki (and formerly Timon)</ul>
+                <ul>CoinFuMasterShifu</ul>
+                <ul>Polaire</ul>
+                <ul>Luk</ul>
+            </div>
+            <div>
+                <ul>M0sh1M0sh1y</ul>
+                <ul>Andrew</ul>
+                <ul>YOU CAN HELP!</ul>
+                <p class="youcanhelp">
+                    This is an open source project and everyone  is encouraged
+                    to contribute. You could help for example with C++ coding on
+                    the core project, web design, marketing and other tasks.
+                    Please contact us on Discord!
+                </p>
+            </div>
+        </div>
+  </ContentDiv>
+    </section>
+</div>

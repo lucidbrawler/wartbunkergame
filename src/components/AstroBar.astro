@@ -1,0 +1,80 @@
+---
+import '../styles.css';
+import Menu from '../components/Menu.astro';
+import Hamburger from './Hamburger.astro';
+
+---
+
+<style>
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-10rem);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0rem);
+  }
+  80% {
+    transform: translateY(10px);
+  }
+  100% {
+    transform: translateY(0rem);
+  }
+}
+.expanded {
+  display: unset;
+}
+
+.logo{
+ 
+    width: 16.25rem;
+  }
+
+.icon{
+    height: 2.5rem;
+  }
+
+.animate-fadeIn {
+  animation: fadeIn .25s ease-out forwards;
+}
+
+.expanded {
+  display: unset;
+}
+
+@media screen and (min-width: 1024px) {
+
+  .desktopMenu a {
+    display: inline-block;
+    padding: .5rem;
+  }
+}
+
+@media screen and (max-width: 1024px) {
+    .desktopMenu {
+      display: none;
+    }
+
+    .desktopMenu a {
+      display: flex;
+      justify-content: center;
+    }
+}
+
+/* Hamburger styles*/
+.navbartop{
+  background-color: white;
+}
+
+</style>
+
+
+<nav class="lg:flex w-full navbartop" >
+    <a  class="logo animate-fadeIn " href="/"><img class=" logo animate-fadeIn" src="/Images/Warthog_2024_Full Logo.svg" alt="logo"/></a>
+    <section class="lg:flex w-full justify-between items-center desktopMenu">
+        <Menu />
+        
+    </section>
+    <Hamburger />
+</nav>

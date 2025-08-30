@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+.parallax-bg {
+  background-attachment: scroll;
+  background-size: cover;
+}
+
+small {
+  font-size: xx-small;
+}
+
+body {
+    font-family: 'Montserrat', sans-serif;
+}
+
+.text-input{
+  position: relative;
+}
+
+.text-input::after{
+  position: absolute;
+  font-family: Inter, sans-serif;
+  font-weight: 500;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  text-align: center;
+  display: inline-block;
+  left: 0px;
+  width: 100%;
+  padding-top: 24px;
+  top: 0px;
+}
+
+.token::after{
+  color: #7c7774;
+  content: 'TOKEN';
+}
+
+.wart::after{
+  color: #000000;
+  content: 'WART';
+}
+
+/* nav styles 
+
+.nav-links {
+  display: none;
+}
+
+.nav-links a {
+  display: flex;
+  justify-content: center;
+}
+*/
+
+span::-webkit-scrollbar {
+  display: none;
+}
+

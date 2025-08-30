@@ -1,16 +1,26 @@
 ---
 
+import Wallet from "../components/wallet.jsx";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ContentDiv from "../components/ContentDiv.jsx";
+
+const title = "Warthog Network";
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<style>
+  .wartSectionHeading {
+    text-shadow: 5px 1px 4px rgb(46, 46, 46);
+    font-family: "Montserrat";
+    font-style: normal;
+    font-weight: 700;
+    font-size: 50px;
+    line-height: 61px;
+    padding-left: 1rem;
+    padding-top: 1rem;
+  }
+</style>
+<BaseLayout title={title}>
+  <ContentDiv>
+    <Wallet client:load />
+  </ContentDiv>
+</BaseLayout>
