@@ -252,31 +252,34 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
       }
     };
   }, [isMobile, joystickCenter, joystickActive]);
+const getCurrentHovered = () => {
+  if (!playerRef.current) return null;
 
-  const checkInteractionZone = () => {
-    if (!playerRef.current) return;
+  const playerRect = playerRef.current.getBoundingClientRect();
+  const counters = isMobile ? [document.getElementById(getCounterIdForRoom(currentRoom))] : document.querySelectorAll('.counter');
+  let newHovered = null;
 
-    const playerRect = playerRef.current.getBoundingClientRect();
-    const counters = isMobile ? [document.getElementById(getCounterIdForRoom(currentRoom))] : document.querySelectorAll('.counter');
-    let newHovered = null;
-
-    counters.forEach((counter) => {
-      if (counter) {
-        const rect = counter.getBoundingClientRect();
-        const overlap = !(
-          playerRect.right < rect.left ||
-          playerRect.left > rect.right ||
-          playerRect.bottom < rect.top ||
-          playerRect.top > rect.bottom
-        );
-        if (overlap) {
-          newHovered = counter.id;
-        }
+  counters.forEach((counter) => {
+    if (counter) {
+      const rect = counter.getBoundingClientRect();
+      const overlap = !(
+        playerRect.right < rect.left ||
+        playerRect.left > rect.right ||
+        playerRect.bottom < rect.top ||
+        playerRect.top > rect.bottom
+      );
+      if (overlap) {
+        newHovered = counter.id;
       }
-    });
+    }
+  });
 
-    setHoveredCounter(newHovered);
-  };
+  return newHovered;
+};
+  const checkInteractionZone = () => {
+  const currentHovered = getCurrentHovered();
+  setHoveredCounter(currentHovered);
+};
 
   const getCounterIdForRoom = (room) => {
     switch (room) {
@@ -301,14 +304,14 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
   };
 
   const checkInteraction = () => {
-    if (hoveredCounter) {
-      setCurrentModal(hoveredCounter);
-      if (hoveredCounter === 'download-wallet') {
-        onOpenDownloadWallet();
-      }
+  const currentHovered = getCurrentHovered(); // Compute fresh sync value here
+  if (currentHovered) {
+    setCurrentModal(currentHovered);
+    if (currentHovered === 'download-wallet') {
+      onOpenDownloadWallet();
     }
-  };
-
+  }
+};
   const changeRoom = (direction) => {
     let newRoom = currentRoom;
     switch (direction) {
