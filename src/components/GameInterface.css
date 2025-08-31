@@ -41,9 +41,9 @@
 .mobile-controls {
   position: fixed;
   bottom: 30px;
-  right: 20px;
+  left: 20px;
   transform: none;
-  left: auto;
+  right: auto;
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -117,7 +117,7 @@
   border: 3px solid #FFC107;
   border-radius: 8px;
   margin: 0 auto;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 
     0 0 20px rgba(255, 193, 7, 0.3),
     inset 0 0 50px rgba(0, 0, 0, 0.5);
@@ -300,7 +300,7 @@
 #wallet-management {
   width: 250px;
   height: 120px;
-  background-image: url(/images/wartbunker.svg);
+  background-image: url(/Images/wartbunker.svg);
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
@@ -313,7 +313,7 @@
 #send-transaction {
   width: 120px;
   height: 120px;
-  background-image: url(/images/bunkersendtx.png);
+  background-image: url(/Images/bunkersendtx.png);
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
@@ -326,7 +326,7 @@
 #node-options {
   width: 120px;
   height: 120px;
-  background-image: url(/images/nodetower.png);
+  background-image: url(/Images/nodetower.png);
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
@@ -339,7 +339,7 @@
 #validate-address {
   width: 120px;
   height: 120px;
-  background-image: url(/images/validateaddress.svg);
+  background-image: url(/Images/validateaddress.svg);
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;

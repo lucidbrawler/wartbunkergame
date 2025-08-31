@@ -41,7 +41,7 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
     if (isMobile && gameContainerRef.current) {
       const updateJoystickPosition = () => {
         const container = gameContainerRef.current;
-        const centerX = joystickRadius + 40;
+        const centerX = container.offsetWidth - joystickRadius - 40;
         const centerY = container.offsetHeight - joystickRadius - 40;
         setJoystickCenter({ x: centerX, y: centerY });
         setThumbPos({ x: centerX, y: centerY });
@@ -179,8 +179,8 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
 
-      if (x > rect.width / 2) {
-        // Right side: interact
+      if (x < rect.width / 2) {
+        // Left side: interact
         checkInteraction();
         return;
       }
@@ -208,39 +208,40 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
     };
 
     const handleTouchMove = (e) => {
-      e.preventDefault();
       if (!joystickActive) return;
-
+      e.preventDefault();
       const touch = e.touches[0];
       const rect = gameContainerRef.current.getBoundingClientRect();
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
 
-      let deltaX = x - joystickCenter.x;
-      let deltaY = y - joystickCenter.y;
-      const magnitude = Math.sqrt(deltaX ** 2 + deltaY ** 2);
+      const deltaX = x - joystickCenter.x;
+      const deltaY = y - joystickCenter.y;
+      let magnitude = Math.sqrt(deltaX ** 2 + deltaY ** 2);
+      let thumbDeltaX = deltaX;
+      let thumbDeltaY = deltaY;
 
       if (magnitude > joystickRadius) {
-        deltaX = (deltaX / magnitude) * joystickRadius;
-        deltaY = (deltaY / magnitude) * joystickRadius;
+        thumbDeltaX = (deltaX / magnitude) * joystickRadius;
+        thumbDeltaY = (deltaY / magnitude) * joystickRadius;
+        magnitude = joystickRadius;
       }
 
-      setThumbPos({ x: joystickCenter.x + deltaX, y: joystickCenter.y + deltaY });
-      setJoystickVector({ x: deltaX / joystickRadius, y: deltaY / joystickRadius });
+      setThumbPos({ x: joystickCenter.x + thumbDeltaX, y: joystickCenter.y + thumbDeltaY });
+      setJoystickVector({ x: thumbDeltaX / joystickRadius, y: thumbDeltaY / joystickRadius });
     };
 
-    const handleTouchEnd = (e) => {
-      e.preventDefault();
+    const handleTouchEnd = () => {
       setJoystickActive(false);
-      setJoystickVector({ x: 0, y: 0 });
       setThumbPos({ x: joystickCenter.x, y: joystickCenter.y });
+      setJoystickVector({ x: 0, y: 0 });
     };
 
     const container = gameContainerRef.current;
     if (container) {
-      container.addEventListener('touchstart', handleTouchStart);
-      container.addEventListener('touchmove', handleTouchMove);
-      container.addEventListener('touchend', handleTouchEnd);
+      container.addEventListener('touchstart', handleTouchStart, { passive: false });
+      container.addEventListener('touchmove', handleTouchMove, { passive: false });
+      container.addEventListener('touchend', handleTouchEnd, { passive: false });
     }
 
     return () => {
@@ -250,128 +251,108 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
         container.removeEventListener('touchend', handleTouchEnd);
       }
     };
-  }, [isMobile, joystickActive, joystickCenter]);
+  }, [isMobile, joystickCenter, joystickActive]);
 
   const checkInteractionZone = () => {
     if (!playerRef.current) return;
-    
-    const playerRect = playerRef.current.getBoundingClientRect();
-    const counterElements = document.querySelectorAll('.counter');
-    let newHoveredCounter = null;
-    
-    counterElements.forEach((counter) => {
-      const counterRect = counter.getBoundingClientRect();
-      const interactionDistance = counter.id === 'wallet-management' ? 140 : 100;
-      
-      if (
-        Math.abs(playerRect.left - counterRect.left) < interactionDistance &&
-        Math.abs(playerRect.top - counterRect.top) < interactionDistance
-      ) {
-        newHoveredCounter = counter.id;
-      }
-    });
-    
-    setHoveredCounter(newHoveredCounter);
-  };
 
-  const checkInteraction = () => {
-    if (!playerRef.current) return;
-    
     const playerRect = playerRef.current.getBoundingClientRect();
-    const counterElements = document.querySelectorAll('.counter');
-    
-    counterElements.forEach((counter) => {
-      const counterRect = counter.getBoundingClientRect();
-      const interactionDistance = counter.id === 'wallet-management' ? 140 : 100;
-      
-      if (
-        Math.abs(playerRect.left - counterRect.left) < interactionDistance &&
-        Math.abs(playerRect.top - counterRect.top) < interactionDistance
-      ) {
-        if (counter.id === 'download-wallet') {
-          onOpenDownloadWallet();
-        } else {
-          setCurrentModal(counter.id);
+    const counters = isMobile ? [document.getElementById(getCounterIdForRoom(currentRoom))] : document.querySelectorAll('.counter');
+    let newHovered = null;
+
+    counters.forEach((counter) => {
+      if (counter) {
+        const rect = counter.getBoundingClientRect();
+        const overlap = !(
+          playerRect.right < rect.left ||
+          playerRect.left > rect.right ||
+          playerRect.bottom < rect.top ||
+          playerRect.top > rect.bottom
+        );
+        if (overlap) {
+          newHovered = counter.id;
         }
       }
     });
+
+    setHoveredCounter(newHovered);
   };
 
-  const handleCopyAddress = () => {
-    if (wallet?.address) {
-      navigator.clipboard.writeText(wallet.address);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+  const getCounterIdForRoom = (room) => {
+    switch (room) {
+      case 0: return 'wallet-management';
+      case 1: return 'node-options';
+      case 2: return 'validate-address';
+      case 3: return 'send-transaction';
+      default: return null;
     }
   };
 
   const handleRoomNavigation = () => {
     const container = gameContainerRef.current;
-    if (!container) return;
+    const width = container.offsetWidth;
+    const height = container.offsetHeight;
+    const threshold = 50;
 
-    const containerWidth = container.offsetWidth;
-    const containerHeight = container.offsetHeight;
-    const margin = 80; // Much larger buffer zone - less sensitive
+    setNearLeft(positionRef.current.x < threshold);
+    setNearRight(positionRef.current.x > width - threshold - 40);
+    setNearTop(positionRef.current.y < threshold);
+    setNearBottom(positionRef.current.y > height - threshold - 40);
+  };
 
-    // Check if player is at edge and should show transition buttons
-    const nearLeftEdge = positionRef.current.x <= margin && currentRoom > 0;
-    const nearRightEdge = positionRef.current.x >= containerWidth - margin - 40 && currentRoom < 3;
-    const nearTopEdge = positionRef.current.y <= margin && currentRoom >= 2;
-    const nearBottomEdge = positionRef.current.y >= containerHeight - margin - 40 && currentRoom < 2;
-
-    setNearLeft(nearLeftEdge);
-    setNearRight(nearRightEdge);
-    setNearTop(nearTopEdge);
-    setNearBottom(nearBottomEdge);
+  const checkInteraction = () => {
+    if (hoveredCounter) {
+      setCurrentModal(hoveredCounter);
+      if (hoveredCounter === 'download-wallet') {
+        onOpenDownloadWallet();
+      }
+    }
   };
 
   const changeRoom = (direction) => {
-    const container = gameContainerRef.current;
-    if (!container) return;
-
-    const containerWidth = container.offsetWidth;
-    const containerHeight = container.offsetHeight;
-
+    let newRoom = currentRoom;
     switch (direction) {
       case 'left':
-        if (currentRoom > 0) {
-          setCurrentRoom(currentRoom - 1);
-          positionRef.current.x = containerWidth - 100;
-          positionRef.current.y = Math.min(positionRef.current.y, containerHeight - 40);
-        }
+        newRoom = (currentRoom - 1 + 4) % 4;
         break;
       case 'right':
-        if (currentRoom < 3) {
-          setCurrentRoom(currentRoom + 1);
-          positionRef.current.x = 100;
-          positionRef.current.y = Math.min(positionRef.current.y, containerHeight - 40);
-        }
+        newRoom = (currentRoom + 1) % 4;
         break;
       case 'up':
-        if (currentRoom >= 2) {
-          setCurrentRoom(currentRoom - 2);
-          positionRef.current.y = containerHeight - 100;
-          positionRef.current.x = Math.min(positionRef.current.x, containerWidth - 40);
-        }
+        newRoom = (currentRoom - 1 + 4) % 4;
         break;
       case 'down':
-        if (currentRoom < 2) {
-          setCurrentRoom(currentRoom + 2);
-          positionRef.current.y = 100;
-          positionRef.current.x = Math.min(positionRef.current.x, containerWidth - 40);
-        }
+        newRoom = (currentRoom + 1) % 4;
+        break;
+      default:
         break;
     }
-    setNearLeft(false);
-    setNearRight(false);
-    setNearTop(false);
-    setNearBottom(false);
+    setCurrentRoom(newRoom);
+    // Reset player position to center after changing room
+    const container = gameContainerRef.current;
+    positionRef.current = {
+      x: container.offsetWidth / 2 - 20,
+      y: container.offsetHeight / 2 - 20
+    };
+    playerRef.current.style.left = `${positionRef.current.x}px`;
+    playerRef.current.style.top = `${positionRef.current.y}px`;
+  };
+
+  const handleCopyAddress = () => {
+    if (wallet?.address) {
+      navigator.clipboard.writeText(wallet.address).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
   };
 
   const handleMobileButtonClick = (action) => {
     switch (action) {
       case 'interact':
         checkInteraction();
+        break;
+      default:
         break;
     }
   };
@@ -383,13 +364,7 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
         <div className="instruction-text">
           {isMobile ? (
             <>
-              Touch and drag to move, use E to interact
-              <button 
-                className="mobile-control-toggle"
-                onClick={() => setShowMobileControls(!showMobileControls)}
-              >
-                {showMobileControls ? 'Hide' : 'Show'} Controls
-              </button>
+              Use joystick to move, use E to interact
             </>
           ) : (
             <>
@@ -400,7 +375,7 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
       </div>
 
       {/* Mobile Controls */}
-      {isMobile && showMobileControls && (
+      {isMobile && (
         <div className="mobile-controls">
           <button 
             className="control-btn interact-btn"
@@ -434,7 +409,7 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
         <div id="player" ref={playerRef}></div>
         
         {/* Joystick visuals */}
-        {isMobile && showMobileControls && joystickActive && (
+        {isMobile && (
           <>
             <div className="joystick-base" ref={baseRef} />
             <div className="joystick-thumb" ref={thumbRef} />
