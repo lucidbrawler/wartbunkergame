@@ -9,10 +9,10 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
   const positionRef = useRef({ x: 380, y: 280 });
   const baseRef = useRef(null);
   const thumbRef = useRef(null);
+  const joystickVectorRef = useRef({ x: 0, y: 0 });
   const [copied, setCopied] = useState(false);
   const [hoveredCounter, setHoveredCounter] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [showMobileControls, setShowMobileControls] = useState(false);
   const [currentRoom, setCurrentRoom] = useState(0);
   const [nearLeft, setNearLeft] = useState(false);
   const [nearRight, setNearRight] = useState(false);
@@ -86,28 +86,43 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
     }
   }, []);
 
+  // Sync joystickVector to ref
+  useEffect(() => {
+    joystickVectorRef.current = joystickVector;
+  }, [joystickVector]);
+
   // Game loop
   useEffect(() => {
+    let frameId;
     const gameLoop = () => {
       if (!playerRef.current || !gameContainerRef.current) {
-        requestAnimationFrame(gameLoop);
+        frameId = requestAnimationFrame(gameLoop);
         return;
       }
 
       const container = gameContainerRef.current;
       const containerWidth = container.offsetWidth;
       const containerHeight = container.offsetHeight;
-      const speed = isMobile ? 2 : 1.05;
+      const speed = isMobile ? 0.5 : 1.05;
 
-      if (!isMobile) {
-        if (keys.current['a'] || keys.current['arrowleft']) positionRef.current.x -= speed;
-        if (keys.current['d'] || keys.current['arrowright']) positionRef.current.x += speed;
-        if (keys.current['w'] || keys.current['arrowup']) positionRef.current.y -= speed;
-        if (keys.current['s'] || keys.current['arrowdown']) positionRef.current.y += speed;
-      } else {
-        positionRef.current.x += speed * joystickVector.x;
-        positionRef.current.y += speed * joystickVector.y;
+      let dx = 0;
+      let dy = 0;
+      if (keys.current['a'] || keys.current['arrowleft']) dx -= 1;
+      if (keys.current['d'] || keys.current['arrowright']) dx += 1;
+      if (keys.current['w'] || keys.current['arrowup']) dy -= 1;
+      if (keys.current['s'] || keys.current['arrowdown']) dy += 1;
+
+      if (dx !== 0 && dy !== 0) {
+        const mag = Math.sqrt(dx * dx + dy * dy);
+        dx /= mag;
+        dy /= mag;
       }
+
+      positionRef.current.x += speed * dx;
+      positionRef.current.y += speed * dy;
+
+      positionRef.current.x += speed * joystickVectorRef.current.x;
+      positionRef.current.y += speed * joystickVectorRef.current.y;
 
       // Boundary checking
       if (positionRef.current.x < 0) positionRef.current.x = 0;
@@ -126,10 +141,11 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
         handleRoomNavigation();
       }
 
-      requestAnimationFrame(gameLoop);
+      frameId = requestAnimationFrame(gameLoop);
     };
-    gameLoop();
-  }, [isMobile, currentRoom, joystickVector]);
+    frameId = requestAnimationFrame(gameLoop);
+    return () => cancelAnimationFrame(frameId);
+  }, [isMobile, currentRoom]);
 
   // Key handlers
   useEffect(() => {
@@ -157,12 +173,18 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
       keys.current[e.key.toLowerCase()] = false;
     };
     
+    const handleBlur = () => {
+      keys.current = {};
+    };
+    
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
     
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
     };
   }, [currentModal, setCurrentModal, nearLeft, nearRight, nearTop, nearBottom, currentRoom]);
 
@@ -355,6 +377,16 @@ const getCurrentHovered = () => {
       case 'interact':
         checkInteraction();
         break;
+      case 'room_change':
+        const directions = [];
+        if (nearLeft) directions.push('left');
+        if (nearRight) directions.push('right');
+        if (nearTop) directions.push('up');
+        if (nearBottom) directions.push('down');
+        if (directions.length === 1) {
+          changeRoom(directions[0]);
+        }
+        break;
       default:
         break;
     }
@@ -386,6 +418,13 @@ const getCurrentHovered = () => {
             onMouseDown={() => handleMobileButtonClick('interact')}
           >
             E
+          </button>
+          <button 
+            className="control-btn room-btn"
+            onTouchStart={() => handleMobileButtonClick('room_change')}
+            onMouseDown={() => handleMobileButtonClick('room_change')}
+          >
+            R
           </button>
         </div>
       )}
@@ -471,22 +510,22 @@ const getCurrentHovered = () => {
             <div className="sector-transitions">
               {nearLeft && (
                 <button className="transition-btn left-btn" onClick={() => changeRoom('left')}>
-                  ← Sector {currentRoom}
+                  ← Sector {((currentRoom - 1 + 4) % 4) + 1}
                 </button>
               )}
               {nearRight && (
                 <button className="transition-btn right-btn" onClick={() => changeRoom('right')}>
-                  Sector {currentRoom + 2} →
+                  Sector {((currentRoom + 1) % 4) + 1} →
                 </button>
               )}
               {nearBottom && (
                 <button className="transition-btn bottom-btn" onClick={() => changeRoom('down')}>
-                  ↓ Sector {currentRoom + 3}
+                  ↓ Sector {((currentRoom + 1) % 4) + 1}
                 </button>
               )}
               {nearTop && (
                 <button className="transition-btn top-btn" onClick={() => changeRoom('up')}>
-                  ↑ Sector {currentRoom - 1}
+                  ↑ Sector {((currentRoom - 1 + 4) % 4) + 1}
                 </button>
               )}
             </div>
