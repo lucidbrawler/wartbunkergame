@@ -15,7 +15,7 @@ const WalletInfoModal = ({
   error,
 }) => {
   return (
-    <div className="modal">
+    <div >
       <h2>Wallet Information</h2>
       <p className="warning">
         Warning: Please write down your seed phrase (if available) and private key on a piece of paper and store them securely. Do not share them with anyone.

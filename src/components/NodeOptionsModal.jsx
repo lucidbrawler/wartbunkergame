@@ -3,7 +3,7 @@ import React from 'react';
 
 const NodeOptionsModal = ({ selectedNode, setSelectedNode, defaultNodeList, closeModal }) => {
   return (
-    <div className="modal">
+    <div >
       <h2>Node Options</h2>
       <div className="form-group">
         <label>Select Node:</label>

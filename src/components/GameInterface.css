@@ -647,23 +647,37 @@
   font-size: 10px;
 }
 
-.modal {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(66, 63, 63, 0.95);
-  padding: 20px;
-  border: 2px solid #FFC107;
-  border-radius: 8px;
-  z-index: 1000;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
-  backdrop-filter: blur(10px);
+/* ... (rest of the file remains the same) */
+
+/* .modal { */ /* Removed - styles moved to Wallet.css .modal-content */
+/*   position: fixed; */
+/*   top: 50%; */
+/*   left: 50%; */
+/*   transform: translate(-50%, -50%); */
+/*   background: rgba(66, 63, 63, 0.95); */
+/*   padding: 20px; */
+/*   border: 2px solid #FFC107; */
+/*   border-radius: 8px; */
+/*   z-index: 1000; */
+/*   max-width: 600px; */
+/*   max-height: 80vh; */
+/*   overflow-y: auto; */
+/*   backdrop-filter: blur(10px); */
+/* } */
+
+/* ... (rest of the file) */
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .modal {
+    width: 95vw; /* Takes up more horizontal space */
+    max-width: none; /* Removes fixed max-width for full utilization */
+    max-height: 90vh; /* Increased to show more content, but still fits with room for scrolling */
+    padding: 15px; /* Slightly reduced for more internal space */
+    top: 5%; /* Starts higher to avoid bottom cutoff */
+    transform: translate(-50%, 0); /* Centers horizontally but positions from top */
+    border-radius: 4px; /* Smaller radius for mobile feel */
+  }
 }
-
-
 
 .form-group { 
   margin-bottom: 10px; 

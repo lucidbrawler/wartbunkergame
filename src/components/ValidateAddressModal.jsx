@@ -10,7 +10,7 @@ const ValidateAddressModal = ({
   error,
 }) => {
   return (
-    <div className="modal">
+    <div >
       <h2>Validate Address</h2>
       <div className="form-group">
         <label>Address:</label>

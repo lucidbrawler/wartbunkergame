@@ -103,7 +103,7 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
       const container = gameContainerRef.current;
       const containerWidth = container.offsetWidth;
       const containerHeight = container.offsetHeight;
-      const speed = isMobile ? 0.85 : 2.655;
+      const speed = isMobile ? 1.85 : 2.655;
 
       let dx = 0;
       let dy = 0;

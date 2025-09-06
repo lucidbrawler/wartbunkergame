@@ -14,7 +14,7 @@ const DownloadWalletPrompt = ({
   if (!showDownloadPrompt) return null;
 
   return (
-    <div className="modal">
+    <div >
       <h2>Download Wallet File</h2>
       <div className="form-group">
         <label>Password to Encrypt Wallet:</label>

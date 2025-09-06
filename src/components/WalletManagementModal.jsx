@@ -20,7 +20,7 @@ const WalletManagementModal = ({
   error,
 }) => {
   return (
-    <div className="modal">
+    <div >
       <h2>Wallet Management</h2>
       <div className="form-group">
         <label>Action:</label>

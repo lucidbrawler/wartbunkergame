@@ -13,7 +13,7 @@ const UnlockWalletModal = ({
   if (!showPasswordPrompt) return null;
 
   return (
-    <div className="modal">
+    <div >
       <h2>Unlock Wallet</h2>
       <div className="form-group">
         <label>Upload Wallet File (optional):</label>

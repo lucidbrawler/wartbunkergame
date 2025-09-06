@@ -169,7 +169,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0); /* Transparent - eliminates any dim/gray overlay */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -177,13 +177,14 @@
 }
 
 .modal-content {
-  background: rgb(87, 87, 87);
-  padding: 15px;
+  background: transparent; /* Transparent - eliminates gray background */
+  padding: 20px;
+  border: 2px solid #FFC107;
   border-radius: 8px;
-  max-width: 90vw; /* Changed from 600px to 90vw for mobile */
-  width: 90%;
-  max-height: 80vh; /* Adjusted to viewport height */
+  max-width: 600px;
+  max-height: 80vh;
   overflow-y: auto;
+  backdrop-filter: blur(10px); /* Keeps blur for style over game background; remove if unwanted */
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   box-sizing: border-box;
 }
@@ -191,7 +192,6 @@
 .modal-content h2 {
   margin-top: 0;
   color: #FFC107;
-  font-size: 16px; /* Reduced for mobile */
 }
 
 .modal-content button {
@@ -199,7 +199,7 @@
 }
 
 .modal-content ul {
-  margin-bottom: 15px;
+  margin-bottom: 20px;
 }
 
 /* Download Wallet Button */
@@ -273,23 +273,23 @@
   }
 
   .modal-overlay {
-    align-items: center; /* Center vertically */
+    align-items: center; /* Ensures vertical centering */
     height: 100vh;
     overflow-y: auto;
-    padding: 10px; /* Add padding to avoid notch/status bar overlap */
+    padding: 10px; /* Avoids notch/status bar overlap */
     box-sizing: border-box;
   }
 
   .modal-content {
-    max-height: 85vh; /* Slightly more constrained for mobile */
-    width: 95vw; /* Slightly wider to maximize usable space */
-    margin: 0; /* Remove top/bottom margins */
-    padding: 10px; /* Reduced padding for mobile */
-    font-size: 14px; /* Smaller base font size */
+    max-height: 90vh; /* More space on mobile, but still fits */
+    width: 95vw; /* Maximizes usable space */
+    margin: 0; /* No extra margins */
+    padding: 15px; /* Adjusted for mobile */
+    font-size: 14px; /* Compact font */
   }
 
   .modal-content h2 {
-    font-size: 14px; /* Further reduced for mobile */
+    font-size: 14px; /* Reduced for mobile */
   }
 
   .modal-content button {
