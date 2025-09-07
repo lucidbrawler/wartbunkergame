@@ -103,7 +103,7 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
       const container = gameContainerRef.current;
       const containerWidth = container.offsetWidth;
       const containerHeight = container.offsetHeight;
-      const speed = isMobile ? 1.85 : 2.655;
+      const speed = isMobile ? 1.85 : 2.655; // Increased by 10% (was 0.5 mobile, 1.05 desktop)
 
       let dx = 0;
       let dy = 0;
@@ -201,11 +201,12 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
 
-      if (x < rect.width / 2) {
-        // Left side: interact
-        checkInteraction();
-        return;
-      }
+      // Removed left-side tap interact to prevent unintended triggers
+      // if (x < rect.width / 2) {
+      //   // Left side: interact
+      //   checkInteraction();
+      //   return;
+      // }
 
       // Check distance to fixed joystick center
       const deltaX = x - joystickCenter.x;

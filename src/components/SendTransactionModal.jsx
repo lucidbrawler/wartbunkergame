@@ -14,7 +14,7 @@ const SendTransactionModal = ({
   error,
 }) => {
   return (
-    <div className="modal">
+    <div >
       <h2>Send Transaction</h2>
       <div className="form-group">
         <label>To Address:</label>
