@@ -13,7 +13,7 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
   const [copied, setCopied] = useState(false);
   const [hoveredCounter, setHoveredCounter] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [currentRoom, setCurrentRoom] = useState(0);
+  const [currentRoom, setCurrentRoom] = useState(0); // Starts at 0 (first sector), can go to 4 (abandoned bank)
   const [nearLeft, setNearLeft] = useState(false);
   const [nearRight, setNearRight] = useState(false);
   const [nearTop, setNearTop] = useState(false);
@@ -124,9 +124,15 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
       positionRef.current.x += speed * joystickVectorRef.current.x;
       positionRef.current.y += speed * joystickVectorRef.current.y;
 
-      // Boundary checking
-      if (positionRef.current.x < 0) positionRef.current.x = 0;
-      if (positionRef.current.x > containerWidth - 40) positionRef.current.x = containerWidth - 40;
+      // Boundary checking and zone transition
+      if (positionRef.current.x < 0) {
+        positionRef.current.x = 0;
+        if (!isMobile && currentRoom > 0) changeRoom('left'); // Move left on desktop
+      }
+      if (positionRef.current.x > containerWidth - 40) {
+        positionRef.current.x = containerWidth - 40;
+        if (!isMobile && currentRoom < 4) changeRoom('right'); // Move to abandoned bank on far right
+      }
       if (positionRef.current.y < 0) positionRef.current.y = 0;
       if (positionRef.current.y > containerHeight - 40) positionRef.current.y = containerHeight - 40;
 
@@ -200,13 +206,6 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
       const rect = gameContainerRef.current.getBoundingClientRect();
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
-
-      // Removed left-side tap interact to prevent unintended triggers
-      // if (x < rect.width / 2) {
-      //   // Left side: interact
-      //   checkInteraction();
-      //   return;
-      // }
 
       // Check distance to fixed joystick center
       const deltaX = x - joystickCenter.x;
@@ -288,7 +287,7 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
         const rect = counter.getBoundingClientRect();
         const overlap = !(
           playerRect.right < rect.left ||
-          playerRect.left > rect.right ||
+          playerRef.left > rect.right ||
           playerRect.bottom < rect.top ||
           playerRect.top > rect.bottom
         );
@@ -312,6 +311,7 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
       case 1: return 'node-options';
       case 2: return 'validate-address';
       case 3: return 'send-transaction';
+      case 4: return 'abandoned-bank'; // New counter for sector 5
       default: return null;
     }
   };
@@ -342,16 +342,16 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
     let newRoom = currentRoom;
     switch (direction) {
       case 'left':
-        newRoom = (currentRoom - 1 + 4) % 4;
+        newRoom = (currentRoom - 1 + 5) % 5; // Wrap around 5 sectors
         break;
       case 'right':
-        newRoom = (currentRoom + 1) % 4;
+        newRoom = (currentRoom + 1) % 5; // Move to next sector, including 4 (abandoned bank)
         break;
       case 'up':
-        newRoom = (currentRoom - 1 + 4) % 4;
+        newRoom = (currentRoom - 1 + 5) % 5; // Wrap around
         break;
       case 'down':
-        newRoom = (currentRoom + 1) % 4;
+        newRoom = (currentRoom + 1) % 5; // Wrap around
         break;
       default:
         break;
@@ -501,6 +501,15 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
                 <div className="sign-center">Send Tx</div>
               </div>
             )}
+            
+            {currentRoom === 4 && (
+              <div 
+                className={`counter ${hoveredCounter === 'abandoned-bank' ? 'interaction-zone' : ''} mobile-counter`} 
+                id="abandoned-bank" 
+              >
+                <div className="sign-center">Abandoned Bank</div>
+              </div>
+            )}
 
             {/* Sector Navigation Hints */}
             <div className="sector-hints">
@@ -514,29 +523,35 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
             <div className="sector-transitions">
               {nearLeft && (
                 <button className="transition-btn left-btn" onClick={() => changeRoom('left')}>
-                  ← Sector {((currentRoom - 1 + 4) % 4) + 1}
+                  ← Sector {((currentRoom - 1 + 5) % 5) + 1}
                 </button>
               )}
               {nearRight && (
                 <button className="transition-btn right-btn" onClick={() => changeRoom('right')}>
-                  Sector {((currentRoom + 1) % 4) + 1} →
+                  Sector {((currentRoom + 1) % 5) + 1} →
                 </button>
               )}
               {nearBottom && (
                 <button className="transition-btn bottom-btn" onClick={() => changeRoom('down')}>
-                  ↓ Sector {((currentRoom + 1) % 4) + 1}
+                  ↓ Sector {((currentRoom + 1) % 5) + 1}
                 </button>
               )}
               {nearTop && (
                 <button className="transition-btn top-btn" onClick={() => changeRoom('up')}>
-                  ↑ Sector {((currentRoom - 1 + 4) % 4) + 1}
+                  ↑ Sector {((currentRoom - 1 + 5) % 5) + 1}
                 </button>
               )}
             </div>
           </>
         ) : (
-          // Desktop: Show all counters in their original positions
+          // Desktop: Show all counters, with abandoned bank as first sector
           <>
+            <div 
+              className={`counter ${hoveredCounter === 'abandoned-bank' ? 'interaction-zone' : ''}`} 
+              id="abandoned-bank" 
+            >
+              <div className="sign-left">Abandoned Bank</div>
+            </div>
             <div 
               className={`counter ${hoveredCounter === 'wallet-management' ? 'interaction-zone' : ''}`} 
               id="wallet-management" 
@@ -586,7 +601,7 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
             <span className="sector-label">SECTOR</span>
             <span className="sector-number">{currentRoom + 1}</span>
             <span className="sector-divider">/</span>
-            <span className="sector-total">4</span>
+            <span className="sector-total">5</span> {/* Updated to 5 sectors */}
           </div>
         )}
         

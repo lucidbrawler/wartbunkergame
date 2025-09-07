@@ -646,7 +646,15 @@
   color: rgba(255, 193, 7, 0.6);
   font-size: 10px;
 }
+.counter#abandoned-bank {
+  background: rgba(139, 69, 19, 0.3); /* Brownish tint for abandoned feel */
+  border: 2px dashed #8B4513;
+}
 
+.counter#abandoned-bank .sign-center {
+  color: #8B4513;
+  text-shadow: 0 0 5px rgba(139, 69, 19, 0.7);
+}
 /* ... (rest of the file remains the same) */
 
 /* .modal { */ /* Removed - styles moved to Wallet.css .modal-content */
