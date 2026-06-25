@@ -1,13 +1,17 @@
-// WalletInfoModal.jsx
 import React from 'react';
 
 const WalletInfoModal = ({
   walletData,
   password,
   setPassword,
+  confirmPassword,
+  setConfirmPassword,
+  walletName,
+  setWalletName,
   saveWalletConsent,
   setSaveWalletConsent,
   saveWalletFunc,
+  useWalletWithoutSaving,
   setShowDownloadPrompt,
   consentToClose,
   setConsentToClose,
@@ -15,16 +19,11 @@ const WalletInfoModal = ({
   error,
 }) => {
   return (
-    <div >
+    <div>
       <h2>Wallet Information</h2>
       <p className="warning">
         Warning: Please write down your seed phrase (if available) and private key on a piece of paper and store them securely. Do not share them with anyone.
       </p>
-      <p>Options for securing your wallet:</p>
-      <ul>
-        <li>Save the wallet to localStorage (encrypted with your password). This allows easy access but is tied to this browser.</li>
-        <li>Download the wallet as an encrypted file (warthog_wallet.txt). You can store this file securely and upload it later to login.</li>
-      </ul>
       {walletData.wordCount && <p><strong>Word Count:</strong> {walletData.wordCount}</p>}
       {walletData.mnemonic && (
         <div>
@@ -38,6 +37,17 @@ const WalletInfoModal = ({
       <p><strong>Private Key:</strong><br /><span>{walletData.privateKey}</span></p>
       <p><strong>Public Key:</strong><br /><span>{walletData.publicKey}</span></p>
       <p><strong>Address:</strong><br /><span>{walletData.address}</span></p>
+
+      <div className="form-group">
+        <label>Wallet Name (for saved login):</label>
+        <input
+          type="text"
+          value={walletName}
+          onChange={(e) => setWalletName(e.target.value)}
+          placeholder="e.g. main-wallet or trading"
+          className="input"
+        />
+      </div>
       <div className="form-group">
         <label>Password to Encrypt Wallet:</label>
         <input
@@ -49,22 +59,35 @@ const WalletInfoModal = ({
         />
       </div>
       <div className="form-group">
+        <label>Confirm Password:</label>
+        <input
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder="Confirm password"
+          className="input"
+        />
+      </div>
+      <div className="form-group">
         <label>
           <input
             type="checkbox"
             checked={saveWalletConsent}
             onChange={(e) => setSaveWalletConsent(e.target.checked)}
           />
-          Save wallet to localStorage (encrypted)
+          Save wallet to this browser (encrypted with your password)
         </label>
       </div>
-      <button onClick={() => {
-        if (saveWalletFunc(walletData, password, saveWalletConsent)) {
-          closeModal();
-          // setWalletData(null); // Assuming this is handled in parent if needed
-        }
-      }}>Save Wallet</button>
-      <button onClick={() => setShowDownloadPrompt(true)}>Download Wallet File</button>
+
+      <button
+        type="button"
+        disabled={!saveWalletConsent || !walletName?.trim() || !password || password !== confirmPassword}
+        onClick={() => saveWalletFunc(walletData, password, saveWalletConsent, walletName)}
+      >
+        Save Named Wallet
+      </button>
+      <button type="button" onClick={() => setShowDownloadPrompt(true)}>Download Wallet File</button>
+
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px', marginTop: '20px' }}>
         <label>
           <input
@@ -72,13 +95,16 @@ const WalletInfoModal = ({
             checked={consentToClose}
             onChange={(e) => setConsentToClose(e.target.checked)}
           />
-          I consent to close without saving or downloading
+          I have backed up my keys securely
         </label>
-        <button disabled={!consentToClose} onClick={() => {
-          closeModal();
-          // setWalletData(null); // Handled in parent
-          setConsentToClose(false);
-        }}>Close</button>
+        <button
+          type="button"
+          disabled={!consentToClose}
+          onClick={() => useWalletWithoutSaving(walletData)}
+        >
+          Use Without Saving
+        </button>
+        <button type="button" onClick={closeModal}>Cancel</button>
       </div>
       {error && <div className="error"><strong>Error:</strong> {error}</div>}
     </div>

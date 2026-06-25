@@ -1,24 +1,53 @@
-// useWallet.js - Custom hook for wallet functionality
-import { useState, useEffect } from 'react';
-import CryptoJS from 'crypto-js';
+// useWallet.js - Custom hook for wallet functionality (warthog-js)
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { ethers } from 'ethers';
-
-const API_URL = '/api/proxy';
-
-const defaultNodeList = [
-  'https://warthognode.duckdns.org',
-  'http://51.75.21.134:3001',
-  'http://62.72.44.89:3001',
-  'http://dev.node-s.com:3001',
-  'https://node.wartscan.io'
-];
+import {
+  NODE_OPTIONS,
+  DEFAULT_NODE_URL,
+  isDefiNode,
+  isMainnetNode,
+} from '../utils/presetNodes.js';
+import {
+  createWarthogApi,
+  signAndSubmitTransaction,
+  parseRecipientAddress,
+  formatSubmitResult,
+  normalizeNodeUrl,
+} from '../utils/warthogClient.js';
+import {
+  generateWallet,
+  deriveWallet,
+  importFromPrivateKey,
+} from '../utils/warthogWallet.js';
+import {
+  formatWartBalance,
+  validateWarthogAddressInput,
+  getNextNonceFromAccount,
+} from '../utils/warthogFormat.js';
+import {
+  AUTO_LOCK_MS,
+  encryptWallet,
+  decryptWallet,
+  getSavedWallets,
+  migrateLegacyWalletStorage,
+} from '../utils/walletStorage.js';
+import {
+  persistPublicSession,
+  readPublicSession,
+  readCurrentWalletName,
+  clearWalletSession,
+} from '../utils/sessionWallet.js';
+import {
+  setSigningPrivateKey,
+  clearSigningPrivateKey,
+  getSigningPrivateKey,
+} from '../utils/signingVault.js';
 
 const useWallet = () => {
-  // Wallet state
   const [walletData, setWalletData] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [balance, setBalance] = useState(null);
+  const [usdBalance, setUsdBalance] = useState(null);
   const [nonceId, setNonceId] = useState(null);
   const [pinHeight, setPinHeight] = useState(null);
   const [pinHash, setPinHash] = useState(null);
@@ -32,57 +61,125 @@ const useWallet = () => {
   const [pathType, setPathType] = useState('hardened');
   const [walletAction, setWalletAction] = useState('create');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [walletName, setWalletName] = useState('');
   const [saveWalletConsent, setSaveWalletConsent] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploadedFileContent, setUploadedFileContent] = useState(null);
   const [isWalletProcessed, setIsWalletProcessed] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [selectedNode, setSelectedNode] = useState(defaultNodeList[4]);
+  const [isSigningUnlocked, setIsSigningUnlocked] = useState(false);
+  const [currentWalletName, setCurrentWalletName] = useState(null);
+  const [selectedNode, setSelectedNode] = useState(DEFAULT_NODE_URL);
+  const [customNode, setCustomNode] = useState('');
 
-  // UI state
   const [consentToClose, setConsentToClose] = useState(false);
   const [showDownloadPrompt, setShowDownloadPrompt] = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [currentModal, setCurrentModal] = useState(null);
   const [error, setError] = useState(null);
 
-  // Results
   const [validateResult, setValidateResult] = useState(null);
   const [sendResult, setSendResult] = useState(null);
 
-  // Initialize wallet from localStorage on mount
+  const autoLockCallbackRef = useRef(null);
+
+  const isSessionLocked = Boolean(isLoggedIn && wallet && !isSigningUnlocked && currentWalletName);
+
+  const activateWalletSession = useCallback((fullWallet, name = null) => {
+    if (!fullWallet?.privateKey || !fullWallet?.address) {
+      throw new Error('Invalid wallet data');
+    }
+
+    setSigningPrivateKey(fullWallet.privateKey);
+    const publicWallet = persistPublicSession(fullWallet, name);
+    setWallet(publicWallet);
+    setCurrentWalletName(name);
+    setIsLoggedIn(true);
+    setIsSigningUnlocked(true);
+    setError(null);
+    return publicWallet;
+  }, []);
+
+  const lockWallet = useCallback(() => {
+    clearSigningPrivateKey();
+    setIsSigningUnlocked(false);
+    setError(null);
+  }, []);
+
+  const registerAutoLockCallback = useCallback((callback) => {
+    autoLockCallbackRef.current = callback;
+  }, []);
+
   useEffect(() => {
-    const encryptedWallet = localStorage.getItem('warthogWallet');
-    if (encryptedWallet) {
-      setShowPasswordPrompt(true);
-      setCurrentModal('unlock-wallet');
+    migrateLegacyWalletStorage();
+
+    const savedNode = localStorage.getItem('selectedNode');
+    if (savedNode) {
+      setSelectedNode(savedNode);
+      setCustomNode(savedNode);
+    }
+
+    const publicWallet = readPublicSession();
+    const name = readCurrentWalletName();
+    if (publicWallet?.address && name) {
+      setWallet(publicWallet);
+      setCurrentWalletName(name);
+      setIsLoggedIn(true);
+      setIsSigningUnlocked(false);
+      clearSigningPrivateKey();
     }
   }, []);
 
-  // Fetch balance and nonce when wallet or node changes
   useEffect(() => {
     if (wallet?.address) {
       fetchBalanceAndNonce(wallet.address);
     }
-  }, [wallet, selectedNode]);
+  }, [wallet?.address, selectedNode]);
 
-  // Utility functions
-  const wartToE8 = (wart) => {
-    try {
-      const num = parseFloat(wart);
-      if (isNaN(num) || num <= 0) return null;
-      return Math.round(num * 100000000);
-    } catch {
-      return null;
-    }
-  };
+  useEffect(() => {
+    if (!isSigningUnlocked) return undefined;
+
+    let timerId;
+    const resetTimer = () => {
+      clearTimeout(timerId);
+      timerId = window.setTimeout(() => {
+        lockWallet();
+        autoLockCallbackRef.current?.({
+          reason: 'inactivity',
+          hasSavedWallet: Boolean(currentWalletName),
+        });
+      }, AUTO_LOCK_MS);
+    };
+
+    const activityEvents = ['mousedown', 'keydown', 'touchstart', 'click', 'scroll'];
+    activityEvents.forEach((eventName) => {
+      window.addEventListener(eventName, resetTimer, { passive: true });
+    });
+    resetTimer();
+
+    return () => {
+      clearTimeout(timerId);
+      activityEvents.forEach((eventName) => {
+        window.removeEventListener(eventName, resetTimer);
+      });
+    };
+  }, [isSigningUnlocked, lockWallet, currentWalletName]);
 
   const closeModal = () => {
     setCurrentModal(null);
     setError(null);
   };
 
-  // API functions
-  const fetchBalanceAndNonce = async (address) => {
+  const applyNode = (newNode) => {
+    const normalized = normalizeNodeUrl(newNode);
+    if (!normalized) return;
+    setSelectedNode(normalized);
+    setCustomNode(normalized);
+    localStorage.setItem('selectedNode', normalized);
+  };
+
+  const fetchBalanceAndNonce = async (walletAddress) => {
     setError(null);
     setBalance(null);
     setNonceId(null);
@@ -90,59 +187,195 @@ const useWallet = () => {
     setPinHash(null);
 
     try {
-      const nodeBaseParam = `nodeBase=${encodeURIComponent(selectedNode)}`;
-      
-      // Fetch chain head
-      const chainHeadResponse = await axios.get(`${API_URL}?nodePath=chain/head&${nodeBaseParam}`);
-      const chainHeadData = chainHeadResponse.data.data || chainHeadResponse.data;
-      setPinHeight(chainHeadData.pinHeight);
-      setPinHash(chainHeadData.pinHash);
+      const api = await createWarthogApi(selectedNode);
+      const { normalizeChainPin } = await import('warthog-js');
 
-      // Fetch balance
-      const balanceResponse = await axios.get(`${API_URL}?nodePath=account/${address}/balance&${nodeBaseParam}`);
-      const balanceData = balanceResponse.data.data || balanceResponse.data;
-      const balanceInWart = balanceData.balance !== undefined ? (balanceData.balance / 1).toFixed(8) : '0';
+      const headRes = await api.getChainHead();
+      if (!headRes.success) {
+        throw new Error(headRes.error || 'Failed to fetch chain head');
+      }
+      const { pinHash: headPinHash, pinHeight: headPinHeight } = normalizeChainPin(headRes.data);
+      setPinHeight(headPinHeight);
+      setPinHash(headPinHash);
+
+      const balRes = isMainnetNode(selectedNode)
+        ? await api.getAccountBalance(walletAddress)
+        : await api.getAccountWartBalance(walletAddress);
+      if (!balRes.success) {
+        throw new Error(balRes.error || 'Failed to fetch balance');
+      }
+      const data = balRes.data;
+
+      const wartBalanceObj = isMainnetNode(selectedNode)
+        ? data?.balance?.total
+        : data?.wart?.total;
+
+      const balanceInWart = await formatWartBalance(wartBalanceObj);
       setBalance(balanceInWart);
 
-      setNonceId(balanceData.nonceId !== undefined ? Number(balanceData.nonceId) + 1 : 0);
+      try {
+        const priceResponse = await axios.get('/api/price');
+        const price = priceResponse.data?.usd || 0;
+        setUsdBalance((parseFloat(balanceInWart) * price).toFixed(2));
+      } catch {
+        setUsdBalance('N/A');
+      }
+
+      if (isMainnetNode(selectedNode)) {
+        setNonceId(await getNextNonceFromAccount(data));
+      } else {
+        setNonceId(0);
+      }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Could not fetch chain head or balance');
+      setError(err.message || 'Could not fetch chain head or balance');
+      setUsdBalance('N/A');
     }
   };
 
-  // Wallet encryption/decryption
-  const encryptWallet = (walletData, password) => {
-    const { privateKey, publicKey, address } = walletData;
-    const walletToSave = { privateKey, publicKey, address };
-    return CryptoJS.AES.encrypt(JSON.stringify(walletToSave), password).toString();
-  };
-
-  const decryptWallet = (encrypted, password) => {
-    try {
-      const bytes = CryptoJS.AES.decrypt(encrypted, password);
-      const decrypted = bytes.toString(CryptoJS.enc.Utf8);
-      if (!decrypted) throw new Error('Invalid password');
-      return JSON.parse(decrypted);
-    } catch {
-      throw new Error('Failed to decrypt wallet: Invalid password');
-    }
-  };
-
-  // Wallet management functions
-  const saveWalletFunc = (walletData, pass, consent) => {
-    if (!consent || !pass) {
-      setError('Please provide a password and consent to save the wallet');
+  const saveNamedWallet = useCallback(async (name, pass, sourceWallet = null) => {
+    const trimmed = (name || '').trim();
+    if (!trimmed || !pass) {
+      setError('Wallet name and password are required');
       return false;
     }
-    
+
+    const privateKey = getSigningPrivateKey();
+    const baseWallet = sourceWallet || wallet;
+    if (!baseWallet?.address) {
+      setError('No active wallet to save');
+      return false;
+    }
+    if (!privateKey) {
+      setError('Unlock your wallet before saving');
+      return false;
+    }
+
     try {
-      const encrypted = encryptWallet(walletData, pass);
-      localStorage.setItem('warthogWallet', encrypted);
-      setWallet(walletData);
+      const encrypted = encryptWallet({ ...baseWallet, privateKey }, pass);
+      localStorage.setItem(`warthogWallet_${trimmed}`, encrypted);
+      setCurrentWalletName(trimmed);
+      persistPublicSession({ ...baseWallet, privateKey }, trimmed);
+      setError(null);
+      return true;
+    } catch (err) {
+      setError(`Failed to save named wallet: ${err.message}`);
+      return false;
+    }
+  }, [wallet]);
+
+  const unlockWallet = useCallback(async (pass) => {
+    if (!currentWalletName) {
+      setError('No saved wallet name for this session. Log out and use Login to Saved Wallet.');
+      return false;
+    }
+    if (!wallet?.address) {
+      setError('No active wallet session to unlock.');
+      return false;
+    }
+
+    const encrypted = localStorage.getItem(`warthogWallet_${currentWalletName}`);
+    if (!encrypted) {
+      setError(`Saved data for "${currentWalletName}" not found in this browser.`);
+      return false;
+    }
+
+    try {
+      const decrypted = decryptWallet(encrypted, pass);
+      if (decrypted.address.toLowerCase() !== wallet.address.toLowerCase()) {
+        setError('Decrypted wallet does not match the current session address.');
+        return false;
+      }
+      activateWalletSession(decrypted, currentWalletName);
+      return true;
+    } catch (err) {
+      setError(err?.message === 'Invalid password' ? 'Invalid password' : `Unlock failed: ${err.message}`);
+      return false;
+    }
+  }, [currentWalletName, wallet, activateWalletSession]);
+
+  const loginSavedWallet = useCallback(async (name, pass) => {
+    if (!name || !pass) {
+      setError('Please select a saved wallet and enter password');
+      return false;
+    }
+
+    const encrypted = localStorage.getItem(`warthogWallet_${name}`);
+    if (!encrypted) {
+      setError('Selected wallet not found');
+      return false;
+    }
+
+    try {
+      const decrypted = decryptWallet(encrypted, pass);
+      activateWalletSession(decrypted, name);
+      closeModal();
+      setPassword('');
+      return true;
+    } catch (err) {
+      setError(err?.message === 'Invalid password' ? 'Invalid password' : `Login failed: ${err.message}`);
+      return false;
+    }
+  }, [activateWalletSession]);
+
+  const loginFromFile = useCallback(async (pass) => {
+    if (!pass) {
+      setError('Please provide a password');
+      return false;
+    }
+
+    try {
+      const encrypted = uploadedFileContent;
+      if (!encrypted) throw new Error('Please upload the warthog_wallet.txt file');
+      const decrypted = decryptWallet(encrypted, pass);
+      activateWalletSession(decrypted, null);
+      setUploadedFile(null);
+      setUploadedFileContent(null);
+      setPassword('');
+      closeModal();
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    }
+  }, [uploadedFileContent, activateWalletSession]);
+
+  const useWalletWithoutSaving = useCallback((data) => {
+    if (!consentToClose) {
+      setError('Please confirm you have saved the seed/private key securely');
+      return false;
+    }
+    try {
+      activateWalletSession(data, null);
+      setWalletData(null);
+      closeModal();
+      setConsentToClose(false);
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    }
+  }, [consentToClose, activateWalletSession]);
+
+  const saveWalletFunc = async (data, pass, consent, name) => {
+    if (!consent || !pass || !name?.trim()) {
+      setError('Please provide a wallet name, password, and consent to save');
+      return false;
+    }
+    if (pass !== confirmPassword) {
+      setError('Passwords do not match');
+      return false;
+    }
+
+    try {
+      const trimmed = name.trim();
+      const encrypted = encryptWallet(data, pass);
+      localStorage.setItem(`warthogWallet_${trimmed}`, encrypted);
+      activateWalletSession(data, trimmed);
       setShowPasswordPrompt(false);
+      setWalletData(null);
       setError(null);
       setIsWalletProcessed(true);
-      setIsLoggedIn(true);
+      closeModal();
       return true;
     } catch (err) {
       setError(err.message);
@@ -150,14 +383,14 @@ const useWallet = () => {
     }
   };
 
-  const downloadWalletFunc = (walletData, pass) => {
+  const downloadWalletFunc = (data, pass) => {
     if (!pass) {
       setError('Please provide a password to encrypt the wallet file');
       return;
     }
-    
+
     try {
-      const encrypted = encryptWallet(walletData, pass);
+      const encrypted = encryptWallet(data, pass);
       const blob = new Blob([encrypted], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -166,7 +399,7 @@ const useWallet = () => {
       a.click();
       URL.revokeObjectURL(url);
       setIsWalletProcessed(true);
-    } catch (err) {
+    } catch {
       setError('Failed to download wallet');
     }
   };
@@ -177,45 +410,20 @@ const useWallet = () => {
       setError('No file selected');
       return;
     }
-    
+
     const reader = new FileReader();
     reader.onload = (e) => {
-      setUploadedFile(e.target.result);
+      setUploadedFile(file);
+      setUploadedFileContent(e.target.result);
+      setError(null);
     };
     reader.onerror = () => setError('Failed to read file');
     reader.readAsText(file);
   };
 
-  const loadWallet = (pass) => {
-    if (!pass) {
-      setError('Please provide a password');
-      return;
-    }
-    
-    try {
-      let encrypted;
-      if (uploadedFile) {
-        encrypted = uploadedFile;
-      } else {
-        encrypted = localStorage.getItem('warthogWallet');
-        if (!encrypted) throw new Error('No wallet found in storage or file');
-      }
-      
-      const decryptedWallet = decryptWallet(encrypted, pass);
-      setWallet(decryptedWallet);
-      setShowPasswordPrompt(false);
-      setUploadedFile(null);
-      setError(null);
-      setIsWalletProcessed(false);
-      setIsLoggedIn(true);
-      closeModal();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const clearWallet = () => {
-    localStorage.removeItem('warthogWallet');
+  const logoutWallet = useCallback(() => {
+    clearSigningPrivateKey();
+    clearWalletSession();
     setWallet(null);
     setBalance(null);
     setNonceId(null);
@@ -223,100 +431,31 @@ const useWallet = () => {
     setPinHash(null);
     setError(null);
     setPassword('');
+    setConfirmPassword('');
+    setWalletName('');
     setSaveWalletConsent(false);
     setUploadedFile(null);
+    setUploadedFileContent(null);
     setIsWalletProcessed(false);
     setIsLoggedIn(false);
-  };
+    setIsSigningUnlocked(false);
+    setCurrentWalletName(null);
+    setWalletData(null);
+  }, []);
 
-  // Wallet generation functions
-  const generateWallet = async (wordCnt, pType) => {
-    try {
-      const strengthBytes = wordCnt === 12 ? 16 : 32;
-      const entropy = window.crypto.getRandomValues(new Uint8Array(strengthBytes));
-      const mnemonicObj = ethers.Mnemonic.fromEntropy(ethers.hexlify(entropy));
-      const mn = mnemonicObj.phrase;
-      const path = pType === 'hardened' ? "m/44'/2070'/0'/0/0" : "m/44'/2070'/0/0/0";
-      const hdWallet = ethers.HDNodeWallet.fromPhrase(mn, '', path);
-      const publicKey = hdWallet.publicKey.slice(2);
-      const sha = ethers.sha256('0x' + publicKey).slice(2);
-      const ripemd = ethers.ripemd160('0x' + sha).slice(2);
-      const checksum = ethers.sha256('0x' + ripemd).slice(2, 10);
-      const addr = ripemd + checksum;
-      
-      return {
-        mnemonic: mn,
-        wordCount: wordCnt,
-        pathType: pType,
-        privateKey: hdWallet.privateKey.slice(2),
-        publicKey,
-        address: addr,
-      };
-    } catch (err) {
-      throw new Error('Failed to generate wallet');
-    }
-  };
+  const clearWallet = logoutWallet;
 
-  const deriveWallet = (mn, wordCnt, pType) => {
-    try {
-      const words = mn.trim().split(/\s+/);
-      if (words.length !== wordCnt) {
-        throw new Error(`Invalid mnemonic: must have exactly ${wordCnt} words`);
-      }
-      
-      const path = pType === 'hardened' ? "m/44'/2070'/0'/0/0" : "m/44'/2070'/0/0/0";
-      const hdWallet = ethers.HDNodeWallet.fromPhrase(mn, '', path);
-      const publicKey = hdWallet.publicKey.slice(2);
-      const sha = ethers.sha256('0x' + publicKey).slice(2);
-      const ripemd = ethers.ripemd160('0x' + sha).slice(2);
-      const checksum = ethers.sha256('0x' + ripemd).slice(2, 10);
-      const addr = ripemd + checksum;
-      
-      return {
-        mnemonic: mn,
-        wordCount: wordCnt,
-        pathType: pType,
-        privateKey: hdWallet.privateKey.slice(2),
-        publicKey,
-        address: addr,
-      };
-    } catch (err) {
-      throw new Error('Invalid mnemonic');
-    }
-  };
-
-  const importFromPrivateKey = (privKey) => {
-    try {
-      const signer = new ethers.Wallet('0x' + privKey);
-      const publicKey = signer.publicKey.slice(2);
-      const sha = ethers.sha256('0x' + publicKey).slice(2);
-      const ripemd = ethers.ripemd160('0x' + sha).slice(2);
-      const checksum = ethers.sha256('0x' + ripemd).slice(2, 10);
-      const addr = ripemd + checksum;
-      
-      return {
-        privateKey: privKey,
-        publicKey,
-        address: addr,
-      };
-    } catch (err) {
-      throw new Error('Invalid private key');
-    }
-  };
-
-  // Main wallet action handler
-  const handleWalletActionFunc = async () => {
+  const handleWalletActionFunc = async (selectedSavedWallet = '') => {
     setError(null);
     setIsWalletProcessed(false);
 
-    // Validation
-    if (walletAction === 'login' && !uploadedFile) {
-      setError('Please upload the warthog_wallet.txt file');
+    if (walletAction === 'login') {
+      await loginSavedWallet(selectedSavedWallet, password);
       return;
     }
 
-    if (walletAction === 'login') {
-      loadWallet(password);
+    if (walletAction === 'load') {
+      await loginFromFile(password);
       return;
     }
 
@@ -343,169 +482,99 @@ const useWallet = () => {
       if (walletAction === 'create') {
         data = await generateWallet(Number(wordCount), pathType);
       } else if (walletAction === 'derive') {
-        data = deriveWallet(mnemonic, Number(wordCount), pathType);
+        data = await deriveWallet(mnemonic, Number(wordCount), pathType);
       } else if (walletAction === 'import') {
-        data = importFromPrivateKey(privateKeyInput);
+        data = await importFromPrivateKey(privateKeyInput);
       }
-      
+
       setWalletData(data);
       setCurrentModal('wallet-info');
     } catch (err) {
       setError(err.message || `Failed to ${walletAction} wallet`);
-      clearWallet();
+      logoutWallet();
     }
   };
 
-  // Address validation
-  const validateAddress = (addr) => {
-    if (typeof addr !== 'string' || addr.length !== 48) {
-      return { valid: false };
-    }
-    
-    const ripemdHex = addr.slice(0, 40);
-    const checksumHex = addr.slice(40);
-    const computedChecksum = ethers.sha256('0x' + ripemdHex).slice(2, 10);
-    
-    return { valid: computedChecksum === checksumHex };
-  };
-
-  const handleValidateAddress = () => {
+  const handleValidateAddress = async () => {
     setError(null);
     setValidateResult(null);
-    
+
     if (!address) {
       setError('Please enter an address');
       return;
     }
-    
+
     try {
-      const result = validateAddress(address);
+      const result = await validateWarthogAddressInput(address);
       setValidateResult(result);
+      if (!result.valid) {
+        setError(result.error);
+      }
     } catch (err) {
       setError(err.message || 'Failed to validate address');
-    }
-  };
-
-  // Transaction functions
-  const getRoundedFeeE8 = async (feeWart) => {
-    const nodeBaseParam = `nodeBase=${encodeURIComponent(selectedNode)}`;
-    
-    try {
-      const response = await axios.get(`${API_URL}?nodePath=tools/encode16bit/from_string/${feeWart}&${nodeBaseParam}`);
-      const feeData = response.data.data || response.data;
-      return feeData.roundedE8;
-    } catch (err) {
-      throw new Error('Failed to round fee');
     }
   };
 
   const handleSendTransaction = async () => {
     setError(null);
     setSendResult(null);
-    
-    // Validation
-    if (!toAddr || !amount || !fee) {
-      setError('Please fill in all transaction fields');
+
+    if (!toAddr || !amount) {
+      setError('Please fill in recipient and amount');
       return;
     }
-    
-    const amountE8 = wartToE8(amount);
-    let feeE8;
-    
-    try {
-      feeE8 = await getRoundedFeeE8(fee);
-    } catch {
-      setError('Invalid fee or failed to round');
+
+    if (!isSigningUnlocked || !getSigningPrivateKey()) {
+      setError('Wallet is locked — unlock to send transactions');
       return;
     }
-    
-    if (!amountE8 || !feeE8) {
-      setError('Invalid amount or fee: must be positive numbers');
-      return;
-    }
-    
-    const txPrivateKey = wallet?.privateKey;
-    if (!txPrivateKey) {
-      setError('No wallet saved. Please create, derive, or log in with a wallet first.');
-      return;
-    }
-    
+
     if (nonceId === null || pinHeight === null || pinHash === null) {
       setError('Nonce or chain head not available. Please refresh balance and try again.');
       return;
     }
-    
+
     try {
-      // Prepare transaction data
-      const pinHashBytes = ethers.getBytes('0x' + pinHash);
-      const heightBytes = new Uint8Array(4);
-      new DataView(heightBytes.buffer).setUint32(0, pinHeight, false);
-      const nonceBytes = new Uint8Array(4);
-      new DataView(nonceBytes.buffer).setUint32(0, nonceId, false);
-      const reserved = new Uint8Array(3);
-      const feeBytes = new Uint8Array(8);
-      new DataView(feeBytes.buffer).setBigUint64(0, BigInt(feeE8), false);
-      const toRawBytes = ethers.getBytes('0x' + toAddr.slice(0, 40));
-      const amountBytes = new Uint8Array(8);
-      new DataView(amountBytes.buffer).setBigUint64(0, BigInt(amountE8), false);
+      const api = await createWarthogApi(selectedNode);
+      const { Address, Wart } = await import('warthog-js');
 
-      // Create message bytes
-      const messageBytes = ethers.concat([
-        pinHashBytes,
-        heightBytes,
-        nonceBytes,
-        reserved,
-        feeBytes,
-        toRawBytes,
-        amountBytes,
-      ]);
+      const recipient = parseRecipientAddress(Address, toAddr);
+      if (!recipient) {
+        throw new Error('Invalid recipient address (expected 40 or 48 hex chars with valid checksum)');
+      }
 
-      // Sign transaction
-      const txHash = ethers.sha256(messageBytes);
-      const txHashBytes = ethers.getBytes(txHash);
-      const signer = new ethers.Wallet('0x' + txPrivateKey);
-      const sig = signer.signingKey.sign(txHashBytes);
+      const wartAmount = Wart.parse(amount);
+      if (!wartAmount) {
+        throw new Error('Invalid amount');
+      }
 
-      const rHex = sig.r.slice(2);
-      const sHex = sig.s.slice(2);
-      const recid = sig.v - 27;
-      const recidHex = recid.toString(16).padStart(2, '0');
-      const signature65 = rHex + sHex + recidHex;
-
-      // Send transaction
-      const nodeBaseParam = `nodeBase=${encodeURIComponent(selectedNode)}`;
-      const response = await axios.post(
-        `${API_URL}?nodePath=transaction/add&${nodeBaseParam}`,
-        {
-          pinHeight,
-          nonceId,
-          toAddr,
-          amountE8,
-          feeE8,
-          signature65,
+      const { data } = await signAndSubmitTransaction(api, {
+        nonceId: nonceId ?? 0,
+        buildSpec: {
+          type: 'TRANSFER_WART',
+          recipientHex: recipient.hex,
+          amount,
         },
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-      
-      setSendResult(response.data);
+      });
+
+      setSendResult(formatSubmitResult(data));
       setToAddr('');
       setAmount('');
       setFee('');
-      
-      // Refresh balance
+
       if (wallet?.address) {
         fetchBalanceAndNonce(wallet.address);
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to send transaction');
+      setError(err.message || 'Failed to send transaction');
     }
   };
 
   return {
-    // Wallet state
     walletData,
     wallet,
     balance,
+    usdBalance,
     nonceId,
     pinHeight,
     pinHash,
@@ -519,24 +588,28 @@ const useWallet = () => {
     pathType,
     walletAction,
     password,
+    confirmPassword,
+    walletName,
     saveWalletConsent,
     uploadedFile,
     isWalletProcessed,
     isLoggedIn,
+    isSigningUnlocked,
+    isSessionLocked,
+    currentWalletName,
     selectedNode,
-    
-    // UI state
+    customNode,
+    isDefiNode: isDefiNode(selectedNode),
+
     consentToClose,
     showDownloadPrompt,
     showPasswordPrompt,
     currentModal,
     error,
-    
-    // Results
+
     validateResult,
     sendResult,
-    
-    // Setters
+
     setWalletData,
     setWallet,
     setMnemonic,
@@ -546,6 +619,8 @@ const useWallet = () => {
     setAmount,
     setFee,
     setPassword,
+    setConfirmPassword,
+    setWalletName,
     setWordCount,
     setPathType,
     setWalletAction,
@@ -553,7 +628,8 @@ const useWallet = () => {
     setUploadedFile,
     setIsWalletProcessed,
     setIsLoggedIn,
-    setSelectedNode,
+    setSelectedNode: applyNode,
+    setCustomNode,
     setConsentToClose,
     setShowDownloadPrompt,
     setShowPasswordPrompt,
@@ -561,18 +637,28 @@ const useWallet = () => {
     setError,
     setValidateResult,
     setSendResult,
-    
-    // Functions
+
     closeModal,
     saveWalletFunc,
     downloadWalletFunc,
     handleFileUpload,
-    loadWallet,
+    loginSavedWallet,
+    loginFromFile,
+    useWalletWithoutSaving,
+    logoutWallet,
     clearWallet,
     handleWalletActionFunc,
     handleValidateAddress,
     handleSendTransaction,
-    defaultNodeList,
+    fetchBalanceAndNonce,
+    activateWalletSession,
+    lockWallet,
+    unlockWallet,
+    saveNamedWallet,
+    registerAutoLockCallback,
+    getSavedWallets,
+    nodeOptions: NODE_OPTIONS,
+    defaultNodeList: NODE_OPTIONS.map((n) => n.url),
   };
 };
 

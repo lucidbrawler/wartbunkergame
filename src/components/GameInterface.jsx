@@ -2,11 +2,51 @@
 // Fixed: stale closures on shoot/useBomb via useCallback + proper deps
 // Keyboard (Space/B) + mobile buttons now instantly respect Double Shot / Rapid Fire / Bomb after choosing upgrade
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import './GameInterface.css';
 import SpaceStation from './SpaceStation';
+import { useWallet } from './WalletContext';
+import { useToast } from './Toast';
 
-const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenDownloadWallet }) => {
+function getMainRooms(isDefi, hasWallet) {
+  const rooms = [
+    { id: 'wallet-management', label: 'Wallet Mgmt' },
+    { id: 'validate-address', label: 'Validate Addr' },
+    { id: 'send-transaction', label: 'Send Tx' },
+    { id: 'space-station', label: 'Space Station' },
+  ];
+  if (isDefi) {
+    rooms.push(
+      { id: 'asset-page', label: 'Assets' },
+      { id: 'dex-page', label: 'DEX' },
+    );
+  }
+  if (hasWallet) {
+    rooms.push({ id: 'download-wallet', label: 'Save Wallet' });
+  }
+  return rooms;
+}
+
+const GameInterface = ({
+  currentModal,
+  setCurrentModal,
+  wallet,
+  balance,
+  isDefiNode,
+  currentWalletName,
+  isSigningUnlocked,
+  isSessionLocked,
+  onOpenUnlock,
+  onOpenDownloadWallet,
+}) => {
+  const { lockWallet } = useWallet();
+  const toast = useToast();
+  const mainRooms = useMemo(
+    () => getMainRooms(isDefiNode, !!wallet),
+    [isDefiNode, wallet],
+  );
+  const mainRoomCount = mainRooms.length;
+
   const keys = useRef({});
   const playerRef = useRef(null);
   const gameContainerRef = useRef(null);
@@ -20,6 +60,7 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
   const [hoveredCounter, setHoveredCounter] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const [currentRoom, setCurrentRoom] = useState(0);
+  const currentRoomData = mainRooms[currentRoom] ?? mainRooms[0];
   const [currentScreen, setCurrentScreen] = useState('main');
   const [zoneProgress, setZoneProgress] = useState({ zone1: 0, zone2: 0, zone3: 0 });
   const [nearLeft, setNearLeft] = useState(false);
@@ -63,6 +104,12 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
   useEffect(() => {
     enemiesRef.current = enemies;
   }, [enemies]);
+
+  useEffect(() => {
+    if (currentRoom >= mainRoomCount) {
+      setCurrentRoom(0);
+    }
+  }, [mainRoomCount, currentRoom]);
 
   // Check if device is mobile
   useEffect(() => {
@@ -208,7 +255,7 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
       const container = gameContainerRef.current;
       const containerWidth = container.offsetWidth;
       const containerHeight = container.offsetHeight;
-      const speed = isMobile ? 1.85 : 2.655;
+      const speed = isMobile ? 2.035 : 2.9205;
 
       // Player movement
       let dx = 0;
@@ -365,7 +412,7 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
 
       checkInteractionZone();
 
-      if (isMobile) {
+      if (currentScreen === 'main') {
         handleRoomNavigation();
       }
 
@@ -611,10 +658,10 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
   const changeRoom = (direction) => {
     let newRoom = currentRoom;
     switch (direction) {
-      case 'left': newRoom = (currentRoom - 1 + 5) % 5; break;
-      case 'right': newRoom = (currentRoom + 1) % 5; break;
-      case 'up': newRoom = (currentRoom - 1 + 5) % 5; break;
-      case 'down': newRoom = (currentRoom + 1) % 5; break;
+      case 'left': newRoom = (currentRoom - 1 + mainRoomCount) % mainRoomCount; break;
+      case 'right': newRoom = (currentRoom + 1) % mainRoomCount; break;
+      case 'up': newRoom = (currentRoom - 1 + mainRoomCount) % mainRoomCount; break;
+      case 'down': newRoom = (currentRoom + 1) % mainRoomCount; break;
       default: break;
     }
     setCurrentRoom(newRoom);
@@ -836,9 +883,9 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
         <div className="game-instructions">
           <div className="instruction-text">
             {isMobile ? (
-              <>Use joystick to move • E to interact • FIRE to shoot aliens</>
+              <>Use joystick to move • Walk to edges to change sector • E to interact • FIRE to shoot aliens</>
             ) : (
-              <>Use WASD or Arrow Keys to move • E or Enter to interact • SPACE to shoot aliens • R to change sectors.</>
+              <>Use WASD or Arrow Keys to move • Walk to edges to change sector • E or Enter to interact • R to travel • SPACE to shoot aliens</>
             )}
           </div>
         </div>
@@ -916,74 +963,46 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
           </>
         )}
         
-        {/* MAIN COUNTERS (only in main screen) */}
-        {currentScreen === 'main' && (
-          isMobile ? (
-            <>
-              {currentRoom === 0 && (
-                <div className={`counter ${hoveredCounter === 'wallet-management' ? 'interaction-zone' : ''} mobile-counter`} id="wallet-management">
-                  <div className="sign-center">Wallet Mgmt</div>
-                </div>
-              )}
-              {currentRoom === 1 && (
-                <div className={`counter ${hoveredCounter === 'node-options' ? 'interaction-zone' : ''} mobile-counter`} id="node-options">
-                  <div className="sign-center">Node Options</div>
-                </div>
-              )}
-              {currentRoom === 2 && (
-                <div className={`counter ${hoveredCounter === 'validate-address' ? 'interaction-zone' : ''} mobile-counter`} id="validate-address">
-                  <div className="sign-center">Validate Addr</div>
-                </div>
-              )}
-              {currentRoom === 3 && (
-                <div className={`counter ${hoveredCounter === 'send-transaction' ? 'interaction-zone' : ''} mobile-counter`} id="send-transaction">
-                  <div className="sign-center">Send Tx</div>
-                </div>
-              )}
-              {currentRoom === 4 && (
-                <div className={`counter ${hoveredCounter === 'space-station' ? 'interaction-zone' : ''} mobile-counter`} id="space-station">
-                  <div className="sign-center">Space Station</div>
-                </div>
-              )}
+        {/* MAIN COUNTERS — one station per sector */}
+        {currentScreen === 'main' && currentRoomData && (
+          <>
+            <div
+              className={`counter room-counter ${hoveredCounter === currentRoomData.id ? 'interaction-zone' : ''}`}
+              id={currentRoomData.id}
+            >
+              <div className="sign-center">{currentRoomData.label}</div>
+            </div>
 
-              <div className="sector-hints">
-                {nearLeft && <div className="hint left-hint">←</div>}
-                {nearRight && <div className="hint right-hint">→</div>}
-                {nearBottom && <div className="hint bottom-hint">↓</div>}
-                {nearTop && <div className="hint top-hint">↑</div>}
-              </div>
+            <div className="sector-hints">
+              {nearLeft && <div className="hint left-hint">←</div>}
+              {nearRight && <div className="hint right-hint">→</div>}
+              {nearBottom && <div className="hint bottom-hint">↓</div>}
+              {nearTop && <div className="hint top-hint">↑</div>}
+            </div>
 
-              <div className="sector-transitions">
-                {nearLeft && <button className="transition-btn left-btn" onClick={() => changeRoom('left')}>← Sector {((currentRoom - 1 + 5) % 5) + 1}</button>}
-                {nearRight && <button className="transition-btn right-btn" onClick={() => changeRoom('right')}>Sector {((currentRoom + 1) % 5) + 1} →</button>}
-                {nearBottom && <button className="transition-btn bottom-btn" onClick={() => changeRoom('down')}>↓ Sector {((currentRoom + 1) % 5) + 1}</button>}
-                {nearTop && <button className="transition-btn top-btn" onClick={() => changeRoom('up')}>↑ Sector {((currentRoom - 1 + 5) % 5) + 1}</button>}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className={`counter ${hoveredCounter === 'space-station' ? 'interaction-zone' : ''}`} id="space-station">
-                <div className="sign-left">Space Station</div>
-              </div>
-              <div className={`counter ${hoveredCounter === 'wallet-management' ? 'interaction-zone' : ''}`} id="wallet-management">
-                <div className="sign-left">Wallet Mgmt</div>
-              </div>
-              <div className={`counter ${hoveredCounter === 'node-options' ? 'interaction-zone' : ''}`} id="node-options">
-                <div className="sign-right1">Node Options</div>
-              </div>
-              <div className={`counter ${hoveredCounter === 'validate-address' ? 'interaction-zone' : ''}`} id="validate-address">
-                <div className="sign-right">Validate Addr</div>
-              </div>
-              <div className={`counter ${hoveredCounter === 'send-transaction' ? 'interaction-zone' : ''}`} id="send-transaction">
-                <div className="sign-center">Send Tx</div>
-              </div>
-              {wallet && (
-                <div className={`counter ${hoveredCounter === 'download-wallet' ? 'interaction-zone' : ''}`} id="download-wallet">
-                  <div className="sign-left">Download Wallet</div>
-                </div>
+            <div className="sector-transitions">
+              {nearLeft && (
+                <button type="button" className="transition-btn left-btn" onClick={() => changeRoom('left')}>
+                  ← Sector {((currentRoom - 1 + mainRoomCount) % mainRoomCount) + 1}
+                </button>
               )}
-            </>
-          )
+              {nearRight && (
+                <button type="button" className="transition-btn right-btn" onClick={() => changeRoom('right')}>
+                  Sector {((currentRoom + 1) % mainRoomCount) + 1} →
+                </button>
+              )}
+              {nearBottom && (
+                <button type="button" className="transition-btn bottom-btn" onClick={() => changeRoom('down')}>
+                  ↓ Sector {((currentRoom + 1) % mainRoomCount) + 1}
+                </button>
+              )}
+              {nearTop && (
+                <button type="button" className="transition-btn top-btn" onClick={() => changeRoom('up')}>
+                  ↑ Sector {((currentRoom - 1 + mainRoomCount) % mainRoomCount) + 1}
+                </button>
+              )}
+            </div>
+          </>
         )}
 
         {/* ZONE COUNTERS */}
@@ -1145,18 +1164,55 @@ const GameInterface = ({ currentModal, setCurrentModal, wallet, balance, onOpenD
 
         {/* HUD Elements */}
         <div id="hud">
-          <div id="balance-hud">Balance: {balance !== null ? `${balance} WART` : 'Loading...'}</div>
+          <div id="balance-hud">
+            {currentWalletName && (
+              <span className="hud-wallet-tag">{currentWalletName}</span>
+            )}
+            Balance: {balance !== null ? `${balance} WART` : 'Loading...'}
+          </div>
+          {wallet?.address && isSigningUnlocked && (
+            <button
+              type="button"
+              className="compact-btn hud-lock-btn"
+              onClick={() => {
+                lockWallet?.();
+                toast.success('Wallet locked — signing disabled until you unlock');
+              }}
+              title="Lock wallet"
+            >
+              Lock
+            </button>
+          )}
+          {wallet?.address && isSessionLocked && currentWalletName && (
+            <button
+              type="button"
+              className="compact-btn hud-unlock-btn"
+              onClick={onOpenUnlock}
+              title={`Unlock wallet "${currentWalletName}"`}
+            >
+              Unlock
+            </button>
+          )}
+          <button
+            type="button"
+            className="compact-btn hover:!text-[#FDB913] !mx-0 !my-0 !px-3 !py-1"
+            onClick={() => setCurrentModal('node-options')}
+            title="Node Options"
+            aria-label="Node Options"
+          >
+            Node
+          </button>
         </div>
 
-        {isMobile && (
+        {currentScreen === 'main' && (
           <div id="sector-hud">
             <span className="sector-label">SECTOR</span>
             <span className="sector-number">{currentRoom + 1}</span>
             <span className="sector-divider">/</span>
-            <span className="sector-total">5</span>
+            <span className="sector-total">{mainRoomCount}</span>
           </div>
         )}
-        
+
         {wallet?.address && (
           <div id="address-hud" onClick={handleCopyAddress}>
             {copied ? 'Copied!' : `Address: ${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`}

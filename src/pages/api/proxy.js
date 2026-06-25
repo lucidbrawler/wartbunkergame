@@ -1,83 +1,112 @@
-// src/pages/api/proxy.js
-// Update: Hardcode or env-var the prod nodeBase for safety.
-// Use process.env.NODE_BASE if set (add to Netlify env vars: NODE_BASE=https://warthognode.duckdns.org),
-// fallback to public node for dev.
-
-import https from 'https';  // For custom agent
+import { rejectFakeMineIfRemote, rejectLocalNodeInProxy } from '../../utils/proxyGuards.js';
 
 export const prerender = false;
 
-const agent = new https.Agent({
-  rejectUnauthorized: false,  // Bypass strict cert validation (use only if cert errors occur; insecure for untrusted nodes)
-});
-
-export const GET = async ({ request }) => {
-  try {
-    const url = new URL(request.url);
-    const nodePath = url.searchParams.get('nodePath');
-    const nodeBase = url.searchParams.get('nodeBase') || process.env.NODE_BASE || 'https://node.wartscan.io';
-    console.log(`[GET] Proxying to: ${nodeBase}/${nodePath}`); // Debug log
-    if (!nodePath) {
-      return new Response(JSON.stringify({ error: 'Missing nodePath query parameter' }), { status: 400 });
-    }
-    const targetUrl = `${nodeBase}/${nodePath}`;
-    const response = await fetch(targetUrl, {
-      headers: { 'Content-Type': 'application/json' },
-      agent: targetUrl.startsWith('https') ? agent : undefined,  // Apply agent only for HTTPS
-    });
-    const data = await response.text();
-    console.log(`[GET] Response status: ${response.status}, data: ${data}`); // Debug log
-    return new Response(data, {
-      status: response.status,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      },
-    });
-  } catch (err) {
-    console.error('[GET] Proxy error:', err.message, err.stack);  // Enhanced logging
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+async function forwardToNode({ nodeBase, nodePath, method = 'GET', body = null }) {
+  if (!nodePath || !nodeBase) {
+    return new Response('Missing params', { status: 400 });
   }
-};
 
-export const POST = async ({ request }) => {
-  try {
-    const url = new URL(request.url);
-    const nodePath = url.searchParams.get('nodePath');
-    const nodeBase = url.searchParams.get('nodeBase') || process.env.NODE_BASE || 'https://node.wartscan.io'; 
-    console.log(`[POST] Proxying to: ${nodeBase}/${nodePath}`); // Debug log
-    if (!nodePath) {
-      return new Response(JSON.stringify({ error: 'Missing nodePath query parameter' }), { status: 400 });
-    }
-    const body = await request.json();
-    const targetUrl = `${nodeBase}/${nodePath}`;
-    const response = await fetch(targetUrl, {
-      method: 'POST',
+  const localNodeRejection = rejectLocalNodeInProxy(nodeBase);
+  if (localNodeRejection) {
+    return new Response(localNodeRejection.body, {
+      status: localNodeRejection.status,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      agent: targetUrl.startsWith('https') ? agent : undefined,
     });
-    const data = await response.text();
-    console.log(`[POST] Response status: ${response.status}, data: ${data}`); // Debug log
-    return new Response(data, {
-      status: response.status,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      },
-    });
-  } catch (err) {
-    console.error('[POST] Proxy error:', err.message, err.stack);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
-};
 
-// Handle OPTIONS for CORS preflight
-export const OPTIONS = async () => {
+  const fakeMineRejection = rejectFakeMineIfRemote(nodePath, nodeBase);
+  if (fakeMineRejection) {
+    return new Response(fakeMineRejection.body, {
+      status: fakeMineRejection.status,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const targetUrl = nodeBase.replace(/\/$/, '') + '/' + nodePath.replace(/^\//, '');
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  const fetchOptions = {
+    method,
+    signal: controller.signal,
+    headers: { 'Cache-Control': 'no-cache' },
+  };
+
+  if (method !== 'GET' && method !== 'HEAD' && body != null) {
+    fetchOptions.body = body;
+    fetchOptions.headers['Content-Type'] = 'application/json';
+  }
+
+  try {
+    const response = await fetch(targetUrl, fetchOptions);
+    clearTimeout(timeoutId);
+    const newHeaders = new Headers(response.headers);
+    newHeaders.set('Cache-Control', 'no-cache');
+    newHeaders.set('Access-Control-Allow-Origin', '*');
+    newHeaders.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    newHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return new Response(response.body, {
+      status: response.status,
+      headers: newHeaders,
+    });
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      return new Response('Request timeout', { status: 408 });
+    }
+    return new Response('Upstream fetch failed', { status: 502 });
+  }
+}
+
+export async function GET({ request }) {
+  const url = new URL(request.url);
+  return forwardToNode({
+    nodeBase: url.searchParams.get('nodeBase'),
+    nodePath: url.searchParams.get('nodePath'),
+    method: 'GET',
+  });
+}
+
+export async function POST({ request }) {
+  const contentType = request.headers.get('content-type') || '';
+
+  if (contentType.includes('application/json')) {
+    try {
+      const envelope = await request.json();
+      if (envelope?.nodeBase && envelope?.nodePath != null) {
+        const forwardBody = envelope.body != null
+          ? JSON.stringify(envelope.body)
+          : null;
+        return forwardToNode({
+          nodeBase: envelope.nodeBase,
+          nodePath: envelope.nodePath,
+          method: envelope.method || 'GET',
+          body: forwardBody,
+        });
+      }
+    } catch {
+      // fall through to legacy query-param POST
+    }
+  }
+
+  const url = new URL(request.url);
+  const nodePath = url.searchParams.get('nodePath');
+  const nodeBase = url.searchParams.get('nodeBase');
+  if (!nodePath || !nodeBase) {
+    return new Response('Missing params', { status: 400 });
+  }
+
+  const body = await request.text();
+  return forwardToNode({
+    nodeBase,
+    nodePath,
+    method: 'POST',
+    body: body || null,
+  });
+}
+
+export async function OPTIONS() {
   return new Response(null, {
     status: 204,
     headers: {
@@ -86,4 +115,4 @@ export const OPTIONS = async () => {
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
   });
-};
+}
