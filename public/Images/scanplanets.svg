@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-label="Scan planets">
+  <defs>
+    <radialGradient id="scanGlow" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#4ade80" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#4ade80" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="goldLight" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FDB913"/>
+      <stop offset="100%" stop-color="#ff8c00"/>
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <circle cx="160" cy="118" r="72" fill="url(#scanGlow)"/>
+  <rect x="108" y="58" width="104" height="72" rx="8" fill="#061018" stroke="#4ade80" stroke-width="2" filter="url(#softGlow)"/>
+  <circle cx="160" cy="94" r="22" fill="none" stroke="#22c55e" stroke-width="1.2" opacity="0.6"/>
+  <circle cx="160" cy="94" r="12" fill="none" stroke="#86efac" stroke-width="1"/>
+  <line x1="160" y1="72" x2="160" y2="116" stroke="#4ade80" stroke-width="1" opacity="0.4"/>
+  <line x1="138" y1="94" x2="182" y2="94" stroke="#4ade80" stroke-width="1" opacity="0.4"/>
+  <line x1="160" y1="94" x2="178" y2="78" stroke="url(#goldLight)" stroke-width="2"/>
+  <circle cx="198" cy="72" r="8" fill="#ff3366"/>
+  <circle cx="210" cy="98" r="5" fill="#FDB913"/>
+  <circle cx="118" cy="108" r="4" fill="#38bdf8"/>
+  <rect x="124" y="148" width="72" height="28" rx="6" fill="#0f2918" stroke="#22c55e" stroke-width="1.5"/>
+  <ellipse cx="160" cy="188" rx="68" ry="11" fill="#040a08" opacity="0.85"/>
+</svg>

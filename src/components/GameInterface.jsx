@@ -27,6 +27,103 @@ function getMainRooms(isDefi, hasWallet) {
   return rooms;
 }
 
+const BASE_PLAYER_HEALTH = 3;
+const DEFENSE_BONUS_HEALTH = 1;
+const TURRET_FIRE_COOLDOWN_MS = 450;
+const MAX_TURRETS = 2;
+const TURRET_PROJECTILE_SPEED = 10.5;
+const COMBAT_ENEMY_START_Y = 130;
+
+function getNearestTargetForTurret(tx, ty, enemies, currentBoss) {
+  let best = null;
+  let bestDist = Infinity;
+
+  enemies
+    .filter((e) => !e.deathTime)
+    .forEach((e) => {
+      const cx = e.x + 22;
+      const cy = e.y + 19;
+      const dist = Math.hypot(cx - tx, cy - ty);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = { x: cx, y: cy };
+      }
+    });
+
+  if (currentBoss) {
+    const bx = currentBoss.x + 30;
+    const by = currentBoss.y + 45;
+    const dist = Math.hypot(bx - tx, by - ty);
+    if (dist < bestDist) {
+      best = { x: bx, y: by };
+    }
+  }
+
+  return best;
+}
+
+function createTurretProjectile(id, turret, target) {
+  const originX = turret.x + 17;
+  const originY = turret.y + 11;
+  const dx = target.x - originX;
+  const dy = target.y - originY;
+  const mag = Math.hypot(dx, dy) || 1;
+  const speed = TURRET_PROJECTILE_SPEED;
+
+  return {
+    id,
+    x: originX,
+    y: originY,
+    vx: (dx / mag) * speed,
+    vy: (dy / mag) * speed,
+    type: 'turret',
+  };
+}
+
+function getDefaultTurretPositions(containerWidth, containerHeight) {
+  return [
+    { id: 1, x: 24, y: containerHeight - 140 },
+    { id: 2, x: containerWidth - 58, y: containerHeight - 140 },
+  ];
+}
+
+function getWaveColumnCounts(wave) {
+  let columnCounts = [];
+  if (wave === 1) columnCounts = [5];
+  else if (wave === 2) columnCounts = [5, 2];
+  else if (wave === 3) columnCounts = [6, 3];
+  else if (wave === 4) columnCounts = [7, 4];
+  else if (wave === 5) columnCounts = [8, 3];
+  else if (wave === 6) columnCounts = [9, 4];
+
+  if (columnCounts.length === 1) {
+    columnCounts[0] += 2;
+  } else {
+    columnCounts[0] += 1;
+    columnCounts[1] += 1;
+  }
+
+  return columnCounts;
+}
+
+const EMPTY_DEFENSE_LOADOUT = { turrets: false, shield: false };
+
+function getCombatStartHealth(loadout) {
+  return BASE_PLAYER_HEALTH + (loadout.shield ? DEFENSE_BONUS_HEALTH : 0);
+}
+
+function isDefenseActive(loadout) {
+  return loadout.turrets || loadout.shield;
+}
+
+function formatDefenseLoadout(loadout) {
+  if (!isDefenseActive(loadout)) return '';
+  const parts = [];
+  if (loadout.turrets) parts.push('Auto-Turrets');
+  if (loadout.shield) parts.push('+1 Shield');
+  return parts.join(' · ');
+}
+
 const GameInterface = ({
   currentModal,
   setCurrentModal,
@@ -54,6 +151,7 @@ const GameInterface = ({
   const baseRef = useRef(null);
   const thumbRef = useRef(null);
   const joystickVectorRef = useRef({ x: 0, y: 0 });
+  const joystickActiveRef = useRef(false);
   const enemiesRef = useRef([]);
 
   const [copied, setCopied] = useState(false);
@@ -84,26 +182,79 @@ const GameInterface = ({
   const [bossHealth, setBossHealth] = useState(5);
   const [showZoneMessage, setShowZoneMessage] = useState(false);
   const [combatStarted, setCombatStarted] = useState(false);
+  const [defenseLoadout, setDefenseLoadout] = useState(EMPTY_DEFENSE_LOADOUT);
+  const [defenseMenuOpen, setDefenseMenuOpen] = useState(false);
+  const [turretPositions, setTurretPositions] = useState([]);
   const [showUpgradeChoice, setShowUpgradeChoice] = useState(false);
   const [upgrades, setUpgrades] = useState({ doubleShot: false, bombAbility: false, rapidFire: false });
   const [showHardModeChoice, setShowHardModeChoice] = useState(false);
   const [hardMode, setHardMode] = useState(false);
   const [bombCooldown, setBombCooldown] = useState(0);
+  const [isBoosting, setIsBoosting] = useState(false);
+  const [boostCooldown, setBoostCooldown] = useState(0);
   const lastShotRef = useRef(0);
   const lastHitRef = useRef(0);
   const lastBossBurstRef = useRef(0);
   const bossPatternRef = useRef(0);
   const lastPatternSwitchRef = useRef(0);
+  const boostUntilRef = useRef(0);
+  const boostCooldownUntilRef = useRef(0);
+  const defenseLoadoutRef = useRef(EMPTY_DEFENSE_LOADOUT);
+  const lastTurretShotRef = useRef(0);
+  const uniqueIdRef = useRef(0);
+  const bossRef = useRef(null);
+  const turretPositionsRef = useRef([]);
+  const nextId = useCallback(() => {
+    uniqueIdRef.current += 1;
+    return uniqueIdRef.current;
+  }, []);
   const HIT_COOLDOWN = 420;
-  const joystickRadius = 50;
+  const BOOST_DURATION_MS = 3500;
+  const BOOST_COOLDOWN_MS = 2500;
+  const BOOST_SPEED_MULTIPLIER = 2.75;
+  const joystickRadius = isMobile ? 34 : 50;
 
   // Destructure upgrades so we can safely depend on them
   const { doubleShot, bombAbility, rapidFire } = upgrades;
+  const defensesDeployed = isDefenseActive(defenseLoadout);
+
+  useEffect(() => {
+    defenseLoadoutRef.current = defenseLoadout;
+  }, [defenseLoadout]);
+
+  useEffect(() => {
+    bossRef.current = boss;
+  }, [boss]);
+
+  useEffect(() => {
+    turretPositionsRef.current = turretPositions;
+  }, [turretPositions]);
 
   // Sync enemies to ref
   useEffect(() => {
     enemiesRef.current = enemies;
   }, [enemies]);
+
+  const resetCombatState = useCallback(() => {
+    setZoneProgress((p) => ({ ...p, zone2: 0 }));
+    setCurrentWave(1);
+    setPlayerHealth(BASE_PLAYER_HEALTH);
+    setEnemies([]);
+    setEnemyProjectiles([]);
+    setProjectiles([]);
+    setBombs([]);
+    setBoss(null);
+    setBossProjectiles([]);
+    setCombatStarted(false);
+    setDefenseLoadout(EMPTY_DEFENSE_LOADOUT);
+    setDefenseMenuOpen(false);
+    setTurretPositions([]);
+    setHardMode(false);
+    setIsWaveCleared(false);
+    setIsVictory(false);
+    setShowUpgradeChoice(false);
+    setShowHardModeChoice(false);
+  }, []);
 
   useEffect(() => {
     if (currentRoom >= mainRoomCount) {
@@ -139,8 +290,12 @@ const GameInterface = ({
     if (isMobile && gameContainerRef.current) {
       const updateJoystickPosition = () => {
         const container = gameContainerRef.current;
-        const centerX = container.offsetWidth - joystickRadius - 40;
-        const centerY = container.offsetHeight - joystickRadius - 40;
+        const edgeInset = isMobile ? 10 : 40;
+        const bottomInset = isMobile
+          ? (container.offsetWidth <= 480 ? 14 : 20)
+          : 40;
+        const centerX = container.offsetWidth - joystickRadius - edgeInset;
+        const centerY = container.offsetHeight - joystickRadius - bottomInset;
         setJoystickCenter({ x: centerX, y: centerY });
         setThumbPos({ x: centerX, y: centerY });
       };
@@ -150,19 +305,28 @@ const GameInterface = ({
       
       return () => window.removeEventListener('resize', updateJoystickPosition);
     }
-  }, [isMobile]);
+  }, [isMobile, joystickRadius]);
 
-  // Update joystick visuals
+  // Update joystick visuals — center both rings on the same point
   useEffect(() => {
+    const baseSize = joystickRadius * 2;
+    const thumbSize = isMobile
+      ? (typeof window !== 'undefined' && window.innerWidth <= 480 ? 22 : 26)
+      : 40;
+
     if (baseRef.current) {
-      baseRef.current.style.left = `${joystickCenter.x - joystickRadius}px`;
-      baseRef.current.style.top = `${joystickCenter.y - joystickRadius}px`;
+      baseRef.current.style.left = `${joystickCenter.x}px`;
+      baseRef.current.style.top = `${joystickCenter.y}px`;
+      baseRef.current.style.width = `${baseSize}px`;
+      baseRef.current.style.height = `${baseSize}px`;
     }
     if (thumbRef.current) {
       thumbRef.current.style.left = `${thumbPos.x}px`;
       thumbRef.current.style.top = `${thumbPos.y}px`;
+      thumbRef.current.style.width = `${thumbSize}px`;
+      thumbRef.current.style.height = `${thumbSize}px`;
     }
-  }, [joystickCenter, thumbPos, joystickRadius]);
+  }, [joystickCenter, thumbPos, joystickRadius, isMobile]);
 
   // Initialize player position based on container size
   useEffect(() => {
@@ -200,6 +364,9 @@ const GameInterface = ({
       setIsWaveCleared(false);
       setIsVictory(false);
       setCombatStarted(false);
+      setDefenseLoadout(EMPTY_DEFENSE_LOADOUT);
+      setDefenseMenuOpen(false);
+      setTurretPositions([]);
       setHardMode(false);
       return;
     }
@@ -209,18 +376,12 @@ const GameInterface = ({
       const startX = containerWidth - 95;
       const horizontalSpacing = 85;
       const verticalSpacing = 55;
-      const startY = 65;
+      const startY = COMBAT_ENEMY_START_Y;
 
-      let columnCounts = [];
-      if (currentWave === 1) columnCounts = [5];
-      else if (currentWave === 2) columnCounts = [5, 2];
-      else if (currentWave === 3) columnCounts = [6, 3];
-      else if (currentWave === 4) columnCounts = [7, 4]; // Hard mode
-      else if (currentWave === 5) columnCounts = [8, 3];
-      else if (currentWave === 6) columnCounts = [9, 4];
+      const columnCounts = getWaveColumnCounts(currentWave);
 
       const newEnemies = [];
-      let idCounter = Date.now();
+      let idCounter = nextId();
 
       columnCounts.forEach((count, colIndex) => {
         const columnX = startX - colIndex * horizontalSpacing;
@@ -236,12 +397,14 @@ const GameInterface = ({
       });
 
       setEnemies(newEnemies);
-      setPlayerHealth(3);
+      if (currentWave === 1) {
+        setPlayerHealth(getCombatStartHealth(defenseLoadoutRef.current));
+      }
       setEnemyProjectiles([]);
       setProjectiles([]);
       setBoss(null);
     }
-  }, [currentScreen, currentWave, isWaveCleared, isVictory, combatStarted]);
+  }, [currentScreen, currentWave, isWaveCleared, isVictory, combatStarted, nextId]);
 
   // ==================== GAME LOOP ====================
   useEffect(() => {
@@ -255,7 +418,16 @@ const GameInterface = ({
       const container = gameContainerRef.current;
       const containerWidth = container.offsetWidth;
       const containerHeight = container.offsetHeight;
-      const speed = isMobile ? 2.035 : 2.9205;
+      const baseSpeed = isMobile ? 2.035 : 2.9205;
+      const now = Date.now();
+      const isBoostActive = currentScreen === 'main' && now < boostUntilRef.current;
+      const speed = baseSpeed * (isBoostActive ? BOOST_SPEED_MULTIPLIER : 1);
+
+      if (currentScreen === 'main' && !isBoostActive) {
+        const cooldownRemaining = Math.max(0, boostCooldownUntilRef.current - now);
+        const roundedCooldown = Math.ceil(cooldownRemaining / 100) * 100;
+        setBoostCooldown((prev) => (prev !== roundedCooldown ? roundedCooldown : prev));
+      }
 
       // Player movement
       let dx = 0;
@@ -285,58 +457,80 @@ const GameInterface = ({
       playerRef.current.style.left = `${positionRef.current.x}px`;
       playerRef.current.style.top = `${positionRef.current.y}px`;
 
+      const combatActive =
+        currentScreen === 'zone2' && combatStarted && playerHealth > 0;
+
       // Update player projectiles
-      setProjectiles(prev =>
-        prev
-          .map(p => ({ ...p, x: p.x + p.vx }))
-          .filter(p => p.x < containerWidth + 30)
-      );
+      if (combatActive) {
+        setProjectiles((prev) =>
+          prev
+            .map((p) => ({
+              ...p,
+              x: p.x + (p.vx ?? 0),
+              y: p.y + (p.vy ?? 0),
+            }))
+            .filter(
+              (p) =>
+                p.x > -40 &&
+                p.x < containerWidth + 40 &&
+                p.y > -40 &&
+                p.y < containerHeight + 40,
+            ),
+        );
+      }
 
       // Update bomb cooldown
-      if (bombCooldown > 0) {
+      if (combatActive && bombCooldown > 0) {
         setBombCooldown(prev => Math.max(0, prev - 16));
       }
 
       // Update bombs
-      setBombs(prev =>
-        prev
-          .map(b => ({ ...b, x: b.x + b.vx }))
-          .filter(b => b.x < containerWidth + 50)
-      );
+      if (combatActive) {
+        setBombs(prev =>
+          prev
+            .map(b => ({ ...b, x: b.x + b.vx }))
+            .filter(b => b.x < containerWidth + 50)
+        );
+      }
 
-      // Update enemies (patrol + death cleanup)
-      setEnemies(prev => {
-        const updated = prev.map(enemy => {
-          if (enemy.deathTime) return enemy;
+      if (combatActive) {
+        // Update enemies (patrol + death cleanup)
+        setEnemies(prev => {
+          const updated = prev.map(enemy => {
+            if (enemy.deathTime) return enemy;
 
-          let dir = enemy.direction || -1;
-          const speed = hardMode ? 2.5 : 1.85;
-          let newX = enemy.x + dir * speed;
-          const minX = containerWidth * 0.25;
-          const maxX = containerWidth - 95;
+            let dir = enemy.direction || -1;
+            const speed = hardMode ? 2.5 : 1.85;
+            let newX = enemy.x + dir * speed;
+            const minX = containerWidth * 0.25;
+            const maxX = containerWidth - 95;
 
-          if (newX <= minX) { newX = minX; dir = 1; }
-          else if (newX >= maxX) { newX = maxX; dir = -1; }
+            if (newX <= minX) { newX = minX; dir = 1; }
+            else if (newX >= maxX) { newX = maxX; dir = -1; }
 
-          const waveAmp = hardMode ? 2.0 : 1.2;
-          const waveY = Math.sin(Date.now() / 280 + enemy.offset) * waveAmp;
-          return { ...enemy, x: newX, y: enemy.y + waveY, direction: dir };
+            const waveAmp = hardMode ? 2.0 : 1.2;
+            const waveY = Math.sin(Date.now() / 280 + enemy.offset) * waveAmp;
+            return { ...enemy, x: newX, y: enemy.y + waveY, direction: dir };
+          });
+
+          return updated.filter(e => !e.deathTime || Date.now() < e.deathTime);
         });
 
-        return updated.filter(e => !e.deathTime || Date.now() < e.deathTime);
-      });
-
-      // Update enemy projectiles
-      const enemyProjectileSpeed = hardMode ? 9.0 : 6.9;
-      setEnemyProjectiles(prev =>
-        prev
-          .map(p => ({ ...p, x: p.x - enemyProjectileSpeed }))
-          .filter(p => p.x > -40)
-      );
+        // Update enemy projectiles
+        const enemyProjectileSpeed = hardMode ? 9.0 : 6.9;
+        setEnemyProjectiles(prev =>
+          prev
+            .map(p => ({ ...p, x: p.x - enemyProjectileSpeed }))
+            .filter(p => p.x > -40)
+        );
+      }
 
       // BOSS LOGIC
-      if (boss) {
+      const currentBoss = combatActive ? bossRef.current : null;
+      if (currentBoss) {
         setBoss(b => {
+          if (!b) return b;
+
           const now = Date.now();
           if (now - lastPatternSwitchRef.current > 5000) {
             bossPatternRef.current = 1 - bossPatternRef.current;
@@ -372,43 +566,80 @@ const GameInterface = ({
         });
 
         if (Math.random() < 0.065) {
-          setBossProjectiles(prev => [...prev, { id: Date.now(), x: boss.x - 12, y: boss.y + 45, vy: 0 }]);
+          setBossProjectiles((prev) => [
+            ...prev,
+            { id: nextId(), x: currentBoss.x - 12, y: currentBoss.y + 45, vy: 0 },
+          ]);
         }
 
         const now = Date.now();
         const burstCooldown = hardMode ? 1800 : 2500;
         if (now - lastBossBurstRef.current > burstCooldown) {
           lastBossBurstRef.current = now;
-          setBossProjectiles(prev => [
+          setBossProjectiles((prev) => [
             ...prev,
-            { id: Date.now() + 1, x: boss.x - 12, y: boss.y + 45, vy: -4 },
-            { id: Date.now() + 2, x: boss.x - 12, y: boss.y + 45, vy: -2 },
-            { id: Date.now() + 3, x: boss.x - 12, y: boss.y + 45, vy: 0 },
-            { id: Date.now() + 4, x: boss.x - 12, y: boss.y + 45, vy: 2 },
-            { id: Date.now() + 5, x: boss.x - 12, y: boss.y + 45, vy: 4 }
+            { id: nextId(), x: currentBoss.x - 12, y: currentBoss.y + 45, vy: -4 },
+            { id: nextId(), x: currentBoss.x - 12, y: currentBoss.y + 45, vy: -2 },
+            { id: nextId(), x: currentBoss.x - 12, y: currentBoss.y + 45, vy: 0 },
+            { id: nextId(), x: currentBoss.x - 12, y: currentBoss.y + 45, vy: 2 },
+            { id: nextId(), x: currentBoss.x - 12, y: currentBoss.y + 45, vy: 4 },
           ]);
         }
       }
 
-      // Boss projectiles movement
-      const bossProjectileSpeed = hardMode ? 10.5 : 8.5;
-      setBossProjectiles(prev =>
-        prev
-          .map(p => ({ ...p, x: p.x - bossProjectileSpeed, y: p.y + (p.vy || 0) }))
-          .filter(p => p.x > -40)
-      );
+      if (combatActive) {
+        // Boss projectiles movement
+        const bossProjectileSpeed = hardMode ? 10.5 : 8.5;
+        setBossProjectiles(prev =>
+          prev
+            .map(p => ({ ...p, x: p.x - bossProjectileSpeed, y: p.y + (p.vy || 0) }))
+            .filter(p => p.x > -40)
+        );
+      }
+
+      // Auto-turrets (deploy defenses buff)
+      if (
+        combatActive &&
+        defenseLoadoutRef.current.turrets &&
+        turretPositionsRef.current.length > 0 &&
+        (enemiesRef.current.some((e) => !e.deathTime) || bossRef.current)
+      ) {
+        const turretNow = Date.now();
+        if (turretNow - lastTurretShotRef.current > TURRET_FIRE_COOLDOWN_MS) {
+          lastTurretShotRef.current = turretNow;
+          const newShots = [];
+
+          turretPositionsRef.current.forEach((turret) => {
+            const target = getNearestTargetForTurret(
+              turret.x + 17,
+              turret.y + 11,
+              enemiesRef.current,
+              bossRef.current,
+            );
+            if (target) {
+              newShots.push(createTurretProjectile(nextId(), turret, target));
+            }
+          });
+
+          if (newShots.length > 0) {
+            setProjectiles((prev) => [...prev, ...newShots]);
+          }
+        }
+      }
 
       // Enemy shooting
-      if (Math.random() < 0.035 && enemiesRef.current.length > 0) {
+      if (combatActive && Math.random() < 0.035 && enemiesRef.current.length > 0) {
         const aliveEnemies = enemiesRef.current.filter(e => !e.deathTime);
         if (aliveEnemies.length > 0) {
           const shooter = aliveEnemies[Math.floor(Math.random() * aliveEnemies.length)];
-          setEnemyProjectiles(prev => [...prev, { id: Date.now(), x: shooter.x - 8, y: shooter.y + 19 }]);
+          setEnemyProjectiles(prev => [...prev, { id: nextId(), x: shooter.x - 8, y: shooter.y + 19 }]);
         }
       }
 
       // Collision detection
-      handleCollisions();
+      if (combatActive) {
+        handleCollisions();
+      }
 
       checkInteractionZone();
 
@@ -420,7 +651,7 @@ const GameInterface = ({
     };
     frameId = requestAnimationFrame(gameLoop);
     return () => cancelAnimationFrame(frameId);
-  }, [isMobile, currentRoom, currentScreen, currentWave, boss, isWaveCleared, isVictory]);
+  }, [isMobile, currentRoom, currentScreen, currentWave, combatStarted, playerHealth, isWaveCleared, isVictory, nextId]);
 
   // ==================== FIXED SHOOT & BOMB (now with useCallback) ====================
   // These are now stable and will always see the latest upgrade state
@@ -431,7 +662,7 @@ const GameInterface = ({
     lastShotRef.current = now;
 
     const baseProjectile = {
-      id: Date.now(),
+      id: nextId(),
       x: positionRef.current.x + 38,
       y: positionRef.current.y + 17,
       vx: 9.5,
@@ -443,36 +674,122 @@ const GameInterface = ({
     if (doubleShot) {
       projectilesToAdd.push({
         ...baseProjectile,
-        id: Date.now() + 1,
+        id: nextId(),
         x: positionRef.current.x + 48,
         type: 'double'
       });
     }
 
     setProjectiles(prev => [...prev, ...projectilesToAdd]);
-  }, [doubleShot, rapidFire, currentScreen, playerHealth]);
+  }, [doubleShot, rapidFire, currentScreen, playerHealth, nextId]);
 
   const useBomb = useCallback(() => {
     if (!bombAbility || bombCooldown > 0 || currentScreen !== 'zone2' || playerHealth <= 0) return;
 
     const newBomb = {
-      id: Date.now(),
+      id: nextId(),
       x: positionRef.current.x + 38,
       y: positionRef.current.y + 17,
       vx: 8
     };
     setBombs(prev => [...prev, newBomb]);
     setBombCooldown(15000);
-  }, [bombAbility, bombCooldown, currentScreen, playerHealth]);
+  }, [bombAbility, bombCooldown, currentScreen, playerHealth, nextId]);
+
+  const openDefenseMenu = useCallback(() => {
+    if (currentScreen !== 'zone2' || combatStarted) return;
+    setDefenseMenuOpen(true);
+  }, [currentScreen, combatStarted]);
+
+  const selectDefenseOption = useCallback((option) => {
+    if (currentScreen !== 'zone2' || combatStarted) return;
+
+    if (option === 'turrets') {
+      setDefenseLoadout({ turrets: true, shield: false });
+      setTurretPositions([]);
+    } else if (option === 'shield') {
+      setDefenseLoadout({ turrets: false, shield: true });
+      setTurretPositions([]);
+    } else if (option === 'both') {
+      setDefenseLoadout({ turrets: true, shield: true });
+      setTurretPositions([]);
+    }
+
+    setDefenseMenuOpen(false);
+  }, [currentScreen, combatStarted]);
+
+  const handleTurretPlacement = useCallback((event) => {
+    if (currentScreen !== 'zone2' || combatStarted || !defenseLoadout.turrets) return;
+    if (turretPositions.length >= MAX_TURRETS) return;
+    if (event.target.closest('.counter, button, .defense-options, .mobile-controls')) return;
+
+    const container = gameContainerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const x = event.clientX - rect.left - 17;
+    const y = event.clientY - rect.top - 11;
+    const clampedX = Math.max(12, Math.min(container.offsetWidth - 50, x));
+    const clampedY = Math.max(
+      COMBAT_ENEMY_START_Y,
+      Math.min(container.offsetHeight - 80, y),
+    );
+
+    setTurretPositions((prev) => [...prev, { id: nextId(), x: clampedX, y: clampedY }]);
+  }, [currentScreen, combatStarted, defenseLoadout.turrets, turretPositions.length, nextId]);
+
+  const launchCombat = useCallback(() => {
+    if (currentScreen !== 'zone2' || combatStarted) return;
+    setDefenseMenuOpen(false);
+
+    if (defenseLoadoutRef.current.turrets) {
+      setTurretPositions((prev) => {
+        if (prev.length >= MAX_TURRETS) return prev;
+        const container = gameContainerRef.current;
+        if (!container) return prev;
+        const defaults = getDefaultTurretPositions(
+          container.offsetWidth,
+          container.offsetHeight,
+        );
+        const filled = [...prev];
+        for (let i = prev.length; i < MAX_TURRETS; i += 1) {
+          filled.push({ ...defaults[i], id: nextId() });
+        }
+        return filled;
+      });
+    }
+
+    setCombatStarted(true);
+    setZoneProgress((prev) => ({ ...prev, zone2: Math.max(prev.zone2, 1) }));
+  }, [currentScreen, combatStarted, nextId]);
+
+  const activateBoost = useCallback(() => {
+    if (currentScreen !== 'main') return;
+
+    const now = Date.now();
+    if (now < boostUntilRef.current || now < boostCooldownUntilRef.current) return;
+
+    boostUntilRef.current = now + BOOST_DURATION_MS;
+    boostCooldownUntilRef.current = now + BOOST_DURATION_MS + BOOST_COOLDOWN_MS;
+    setIsBoosting(true);
+
+    window.setTimeout(() => {
+      setIsBoosting(false);
+    }, BOOST_DURATION_MS);
+  }, [currentScreen]);
 
   // Key handlers (NOW includes shoot/useBomb in deps so upgrades work!)
   useEffect(() => {
     const handleKeyDown = (e) => {
       keys.current[e.key.toLowerCase()] = true;
 
-      if (e.key === ' ' && currentScreen === 'zone2') {
+      if (e.key === ' ') {
         e.preventDefault();
-        shoot();
+        if (currentScreen === 'zone2') {
+          shoot();
+        } else if (currentScreen === 'main') {
+          activateBoost();
+        }
       }
       if (e.key.toLowerCase() === 'b' && currentScreen === 'zone2') {
         e.preventDefault();
@@ -481,15 +798,8 @@ const GameInterface = ({
       if (e.key.toLowerCase() === 'e' || e.key === 'Enter') {
         checkInteraction();
       }
-      if (e.key.toLowerCase() === 'r') {
-        const directions = [];
-        if (nearLeft) directions.push('left');
-        if (nearRight) directions.push('right');
-        if (nearTop) directions.push('up');
-        if (nearBottom) directions.push('down');
-        if (directions.length === 1) {
-          changeRoom(directions[0]);
-        }
+      if (e.key.toLowerCase() === 'r' && currentScreen === 'main') {
+        attemptRoomChange();
       }
       if (e.key === 'Escape' && currentModal) {
         setCurrentModal(null);
@@ -513,15 +823,16 @@ const GameInterface = ({
       document.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('blur', handleBlur);
     };
-  }, [currentModal, setCurrentModal, nearLeft, nearRight, nearTop, nearBottom, currentRoom, currentScreen, shoot, useBomb]);
+  }, [currentModal, setCurrentModal, currentRoom, currentScreen, shoot, useBomb, activateBoost, isMobile]);
 
   // Touch handlers for mobile (unchanged - already re-bound on render)
   useEffect(() => {
     if (!isMobile) return;
 
     const handleTouchStart = (e) => {
-      e.preventDefault();
-      if (e.target.closest('.mobile-controls')) return;
+      if (e.target.closest('.transition-btn, .counter, button, .defense-options')) {
+        return;
+      }
 
       const touch = e.touches[0];
       const rect = gameContainerRef.current.getBoundingClientRect();
@@ -533,6 +844,8 @@ const GameInterface = ({
       const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
 
       if (distance < joystickRadius * 1.5) {
+        e.preventDefault();
+        joystickActiveRef.current = true;
         setJoystickActive(true);
 
         let thumbDeltaX = deltaX;
@@ -549,7 +862,7 @@ const GameInterface = ({
     };
 
     const handleTouchMove = (e) => {
-      if (!joystickActive) return;
+      if (!joystickActiveRef.current) return;
       e.preventDefault();
       const touch = e.touches[0];
       const rect = gameContainerRef.current.getBoundingClientRect();
@@ -573,6 +886,7 @@ const GameInterface = ({
     };
 
     const handleTouchEnd = () => {
+      joystickActiveRef.current = false;
       setJoystickActive(false);
       setThumbPos({ x: joystickCenter.x, y: joystickCenter.y });
       setJoystickVector({ x: 0, y: 0 });
@@ -592,7 +906,7 @@ const GameInterface = ({
         container.removeEventListener('touchend', handleTouchEnd);
       }
     };
-  }, [isMobile, joystickCenter, joystickActive]);
+  }, [isMobile, joystickCenter]);
 
   // ==================== FIXED INTERACTION DETECTION ====================
   const getCurrentHovered = () => {
@@ -643,14 +957,25 @@ const GameInterface = ({
 
   const checkInteraction = () => {
     const currentHovered = getCurrentHovered();
-    if (currentHovered) {
-      if (currentHovered === 'space-station') {
-        setCurrentScreen('zone-select');
-      } else {
-        setCurrentModal(currentHovered);
-        if (currentHovered === 'download-wallet') {
-          onOpenDownloadWallet();
-        }
+    if (!currentHovered) return;
+
+    if (currentScreen === 'zone2' && !combatStarted && zoneProgress.zone2 === 0) {
+      if (currentHovered === 'deploy-defenses') {
+        openDefenseMenu();
+        return;
+      }
+      if (currentHovered === 'counterattack') {
+        launchCombat();
+        return;
+      }
+    }
+
+    if (currentHovered === 'space-station') {
+      setCurrentScreen('zone-select');
+    } else {
+      setCurrentModal(currentHovered);
+      if (currentHovered === 'download-wallet') {
+        onOpenDownloadWallet();
       }
     }
   };
@@ -667,13 +992,50 @@ const GameInterface = ({
     setCurrentRoom(newRoom);
 
     const container = gameContainerRef.current;
+    if (!container) return;
     if (direction === 'left') positionRef.current.x = container.offsetWidth - 40;
     else if (direction === 'right') positionRef.current.x = 0;
     else if (direction === 'up') positionRef.current.y = container.offsetHeight - 40;
     else if (direction === 'down') positionRef.current.y = 0;
 
-    playerRef.current.style.left = `${positionRef.current.x}px`;
-    playerRef.current.style.top = `${positionRef.current.y}px`;
+    if (playerRef.current) {
+      playerRef.current.style.left = `${positionRef.current.x}px`;
+      playerRef.current.style.top = `${positionRef.current.y}px`;
+    }
+  };
+
+  const getEdgeTravelDirection = () => {
+    const container = gameContainerRef.current;
+    if (!container) return null;
+
+    const width = container.offsetWidth;
+    const height = container.offsetHeight;
+    const threshold = 50;
+    const { x, y } = positionRef.current;
+
+    const candidates = [];
+    if (x < threshold) candidates.push({ dir: 'left', dist: x });
+    if (x > width - threshold - 40) candidates.push({ dir: 'right', dist: width - 40 - x });
+    if (y < threshold) candidates.push({ dir: 'up', dist: y });
+    if (y > height - threshold - 40) candidates.push({ dir: 'down', dist: height - 40 - y });
+
+    if (candidates.length === 0) return null;
+    candidates.sort((a, b) => a.dist - b.dist);
+    return candidates[0].dir;
+  };
+
+  const attemptRoomChange = () => {
+    if (currentScreen !== 'main') return;
+
+    const direction = getEdgeTravelDirection();
+    if (direction) {
+      changeRoom(direction);
+      return;
+    }
+
+    if (isMobile) {
+      changeRoom('right');
+    }
   };
 
   // Collision detection (unchanged)
@@ -839,6 +1201,21 @@ const GameInterface = ({
     }
   };
 
+  const formatCompactBalance = (value) => {
+    if (value === null || value === undefined) return '…';
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return '…';
+    if (Math.abs(amount) >= 10000) return `${(amount / 1000).toFixed(1)}k WART`;
+    if (Math.abs(amount) >= 1000) return `${amount.toFixed(1)} WART`;
+    return `${amount.toFixed(2)} WART`;
+  };
+
+  const formatShortAddress = (address) => {
+    if (!address) return '';
+    if (address.length <= 11) return address;
+    return `${address.slice(0, 5)}…${address.slice(-5)}`;
+  };
+
   const handleCopyAddress = () => {
     if (wallet?.address) {
       navigator.clipboard.writeText(wallet.address).then(() => {
@@ -848,18 +1225,49 @@ const GameInterface = ({
     }
   };
 
+  const renderHudActionButtons = () => (
+    <>
+      {wallet?.address && isSigningUnlocked && (
+        <button
+          type="button"
+          className="compact-btn hud-lock-btn"
+          onClick={() => {
+            lockWallet?.();
+            toast.success('Wallet locked — signing disabled until you unlock');
+          }}
+          title="Lock wallet"
+        >
+          Lock
+        </button>
+      )}
+      {wallet?.address && isSessionLocked && currentWalletName && (
+        <button
+          type="button"
+          className="compact-btn hud-unlock-btn"
+          onClick={onOpenUnlock}
+          title={`Unlock wallet "${currentWalletName}"`}
+        >
+          Unlock
+        </button>
+      )}
+      <button
+        type="button"
+        className="compact-btn hover:!text-[#FDB913] !mx-0 !my-0 !px-3 !py-1"
+        onClick={() => setCurrentModal('node-options')}
+        title="Node Options"
+        aria-label="Node Options"
+      >
+        Node
+      </button>
+    </>
+  );
+
   const handleMobileButtonClick = (action) => {
     switch (action) {
       case 'interact': checkInteraction(); break;
-      case 'room_change':
-        const directions = [];
-        if (nearLeft) directions.push('left');
-        if (nearRight) directions.push('right');
-        if (nearTop) directions.push('up');
-        if (nearBottom) directions.push('down');
-        if (directions.length === 1) changeRoom(directions[0]);
-        break;
+      case 'room_change': attemptRoomChange(); break;
       case 'shoot': shoot(); break;
+      case 'boost': activateBoost(); break;
       default: break;
     }
   };
@@ -883,9 +1291,9 @@ const GameInterface = ({
         <div className="game-instructions">
           <div className="instruction-text">
             {isMobile ? (
-              <>Use joystick to move • Walk to edges to change sector • E to interact • FIRE to shoot aliens</>
+              <>Move: joystick · NEXT: switch sector · E: interact · BURN: boost</>
             ) : (
-              <>Use WASD or Arrow Keys to move • Walk to edges to change sector • E or Enter to interact • R to travel • SPACE to shoot aliens</>
+              <>Use WASD or Arrow Keys to move • Walk to edges to change sector • E or Enter to interact • R to travel • SPACE for afterburner (sectors) or shoot (combat)</>
             )}
           </div>
         </div>
@@ -896,19 +1304,28 @@ const GameInterface = ({
         <>
           {currentScreen === 'main' && (
             <div className="mobile-controls">
-              <button 
+              <button
+                type="button"
                 className="control-btn interact-btn"
-                onTouchStart={() => handleMobileButtonClick('interact')}
-                onMouseDown={() => handleMobileButtonClick('interact')}
+                onClick={() => handleMobileButtonClick('interact')}
               >
                 E
               </button>
-              <button 
+              <button
+                type="button"
                 className="control-btn room-btn"
-                onTouchStart={() => handleMobileButtonClick('room_change')}
-                onMouseDown={() => handleMobileButtonClick('room_change')}
+                onClick={() => handleMobileButtonClick('room_change')}
+                title="Next sector"
               >
-                R
+                NEXT
+              </button>
+              <button
+                type="button"
+                className={`control-btn boost-btn${isBoosting ? ' boost-btn--active' : ''}`}
+                onClick={() => handleMobileButtonClick('boost')}
+                disabled={isBoosting || boostCooldown > 0}
+              >
+                BURN
               </button>
             </div>
           )}
@@ -934,7 +1351,12 @@ const GameInterface = ({
         </>
       )}
 
-      <div id="game-container" ref={gameContainerRef} className={currentScreen}>
+      <div
+        id="game-container"
+        ref={gameContainerRef}
+        className={`${currentScreen}${currentScreen === 'zone2' && combatStarted ? ' combat-active' : ''}${currentScreen === 'zone2' && defenseLoadout.turrets && !combatStarted ? ' turret-placement' : ''}`}
+        onClick={handleTurretPlacement}
+      >
         {/* Game Background Elements */}
         <div className="background-elements">
           <div className="star star-1"></div>
@@ -953,7 +1375,11 @@ const GameInterface = ({
         </div>
         
         {/* Player */}
-        <div id="player" ref={playerRef}></div>
+        <div
+          id="player"
+          ref={playerRef}
+          className={currentScreen === 'main' && isBoosting ? 'player-boosting' : ''}
+        ></div>
         
         {/* Joystick visuals */}
         {isMobile && (
@@ -1014,19 +1440,34 @@ const GameInterface = ({
             setZoneProgress={setZoneProgress}
             hoveredCounter={hoveredCounter}
             combatStarted={combatStarted}
-            setCombatStarted={setCombatStarted}
+            defenseLoadout={defenseLoadout}
+            defenseMenuOpen={defenseMenuOpen}
+            onOpenDefenseMenu={openDefenseMenu}
+            onSelectDefenseOption={selectDefenseOption}
+            onLaunchCombat={launchCombat}
             setShowUpgradeChoice={setShowUpgradeChoice}
+            turretPositions={turretPositions}
+            maxTurrets={MAX_TURRETS}
+            onResetCombat={resetCombatState}
           />
         )}
 
         {/* PLAYER PROJECTILES */}
-        {projectiles.map((p) => (
-          <div
-            key={p.id}
-            className={`projectile ${p.type || ''}`}
-            style={{ left: `${p.x}px`, top: `${p.y}px` }}
-          />
-        ))}
+        {projectiles.map((p) => {
+          const hasVector = p.vy != null && p.vx != null;
+          const angle = hasVector ? Math.atan2(p.vy, p.vx) : 0;
+          return (
+            <div
+              key={p.id}
+              className={`projectile ${p.type || ''}`}
+              style={{
+                left: `${p.x}px`,
+                top: `${p.y}px`,
+                transform: hasVector ? `rotate(${angle}rad)` : undefined,
+              }}
+            />
+          );
+        })}
 
         {/* BOMBS */}
         {bombs.map((b) => (
@@ -1080,17 +1521,36 @@ const GameInterface = ({
           />
         ))}
 
-        {/* Health HUD */}
-        {currentScreen === 'zone2' && (
-          <div id="health-hud">
-            Health: {'♥'.repeat(playerHealth)}
-          </div>
-        )}
+        {/* Auto-turrets */}
+        {currentScreen === 'zone2' && defenseLoadout.turrets && turretPositions.map((turret) => {
+          const target = getNearestTargetForTurret(
+            turret.x + 17,
+            turret.y + 11,
+            enemies,
+            boss,
+          );
+          const aimAngle = target
+            ? Math.atan2(target.y - (turret.y + 11), target.x - (turret.x + 17))
+            : 0;
 
-        {/* Bomb HUD */}
-        {currentScreen === 'zone2' && bombAbility && (
-          <div id="bomb-hud">
-            Bomb: {bombCooldown > 0 ? `${(bombCooldown / 1000).toFixed(1)}s` : 'READY'} (B)
+          return (
+            <div
+              key={turret.id}
+              className={`defense-turret${combatStarted ? ' defense-turret--active' : ''}`}
+              style={{ left: `${turret.x}px`, top: `${turret.y}px` }}
+              aria-hidden="true"
+            >
+              <div
+                className="defense-turret-barrel"
+                style={{ transform: `rotate(${aimAngle}rad)` }}
+              />
+            </div>
+          );
+        })}
+
+        {currentScreen === 'zone2' && defenseLoadout.turrets && !combatStarted && (
+          <div className="turret-placement-hint">
+            Click the battlefield to place turrets ({turretPositions.length}/{MAX_TURRETS})
           </div>
         )}
 
@@ -1120,7 +1580,7 @@ const GameInterface = ({
             <h2>With your new upgrade, launch another attack on stronger alien forces?</h2>
             <div className="upgrade-options">
               <button onClick={() => { setZoneProgress(p => ({ ...p, zone2: 3 })); setCurrentScreen('main'); setShowHardModeChoice(false); }}>Return to Base</button>
-              <button onClick={() => { setHardMode(true); setCurrentWave(4); setCombatStarted(true); setPlayerHealth(3); setShowHardModeChoice(false); }}>Launch Another Attack</button>
+              <button onClick={() => { setHardMode(true); setCurrentWave(4); setCombatStarted(true); setPlayerHealth(getCombatStartHealth(defenseLoadout)); setShowHardModeChoice(false); }}>Launch Another Attack</button>
             </div>
           </div>
         )}
@@ -1132,28 +1592,16 @@ const GameInterface = ({
             <p>The aliens overran the colony...</p>
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
               <button
-                onClick={() => {
-                  setZoneProgress(p => ({ ...p, zone2: 0 }));
-                  setCurrentWave(1);
-                  setPlayerHealth(3);
-                  setEnemies([]);
-                  setEnemyProjectiles([]);
-                  setProjectiles([]);
-                  setBoss(null);
-                  setBossProjectiles([]);
-                  setCombatStarted(false);
-                  setHardMode(false);
-                  setIsWaveCleared(false);
-                  setIsVictory(false);
-                  setShowUpgradeChoice(false);
-                  setShowHardModeChoice(false);
-                }}
+                onClick={resetCombatState}
                 style={{ padding: '12px 24px', fontSize: '18px' }}
               >
                 Time-Walk
               </button>
               <button
-                onClick={() => setCurrentScreen('main')}
+                onClick={() => {
+                  resetCombatState();
+                  setCurrentScreen('main');
+                }}
                 style={{ padding: '12px 24px', fontSize: '18px' }}
               >
                 Return to Base
@@ -1163,60 +1611,161 @@ const GameInterface = ({
         )}
 
         {/* HUD Elements */}
-        <div id="hud">
-          <div id="balance-hud">
-            {currentWalletName && (
-              <span className="hud-wallet-tag">{currentWalletName}</span>
+        {isMobile ? (
+          <div className={`mobile-game-status${currentScreen === 'zone2' && combatStarted ? ' mobile-game-status--combat' : ''}`}>
+            <div className="mobile-game-status__row">
+              {currentScreen === 'main' && (
+                <span className="mobile-game-status__sector" aria-label={`Sector ${currentRoom + 1} of ${mainRoomCount}`}>
+                  <span className="mobile-game-status__sector-current">{currentRoom + 1}</span>
+                  <span className="mobile-game-status__sector-total">/{mainRoomCount}</span>
+                </span>
+              )}
+              <div className="mobile-game-status__info">
+                {currentWalletName && (
+                  <span className="mobile-game-status__wallet">{currentWalletName}</span>
+                )}
+                <span className="mobile-game-status__balance">{formatCompactBalance(balance)}</span>
+              </div>
+              <div className="mobile-game-status__actions">
+                {renderHudActionButtons()}
+              </div>
+            </div>
+
+            {wallet?.address && (
+              <button
+                type="button"
+                className={`compact-btn mobile-game-status__address hover:!text-[#FDB913] !mx-0 !my-0 !px-3 !py-1 font-mono${
+                  copied ? ' compact-btn--active' : ''
+                }`}
+                onClick={handleCopyAddress}
+                title={`${wallet.address} — click to copy`}
+              >
+                {copied ? 'Copied!' : formatShortAddress(wallet.address)}
+              </button>
             )}
-            Balance: {balance !== null ? `${balance} WART` : 'Loading...'}
-          </div>
-          {wallet?.address && isSigningUnlocked && (
-            <button
-              type="button"
-              className="compact-btn hud-lock-btn"
-              onClick={() => {
-                lockWallet?.();
-                toast.success('Wallet locked — signing disabled until you unlock');
-              }}
-              title="Lock wallet"
-            >
-              Lock
-            </button>
-          )}
-          {wallet?.address && isSessionLocked && currentWalletName && (
-            <button
-              type="button"
-              className="compact-btn hud-unlock-btn"
-              onClick={onOpenUnlock}
-              title={`Unlock wallet "${currentWalletName}"`}
-            >
-              Unlock
-            </button>
-          )}
-          <button
-            type="button"
-            className="compact-btn hover:!text-[#FDB913] !mx-0 !my-0 !px-3 !py-1"
-            onClick={() => setCurrentModal('node-options')}
-            title="Node Options"
-            aria-label="Node Options"
-          >
-            Node
-          </button>
-        </div>
 
-        {currentScreen === 'main' && (
-          <div id="sector-hud">
-            <span className="sector-label">SECTOR</span>
-            <span className="sector-number">{currentRoom + 1}</span>
-            <span className="sector-divider">/</span>
-            <span className="sector-total">{mainRoomCount}</span>
+            {currentScreen === 'zone2' && combatStarted && (
+              <div className="mobile-game-status__combat">
+                <span className="mobile-game-status__hearts" aria-label={`Health ${playerHealth}`}>
+                  {'♥'.repeat(playerHealth)}
+                </span>
+                {defensesDeployed && (
+                  <span className="mobile-game-status__defense">
+                    {defenseLoadout.turrets && 'Turrets'}
+                    {defenseLoadout.turrets && defenseLoadout.shield && ' · '}
+                    {defenseLoadout.shield && `+${DEFENSE_BONUS_HEALTH} Shield`}
+                  </span>
+                )}
+                {bombAbility && (
+                  <span className="mobile-game-status__bomb">
+                    Bomb {bombCooldown > 0 ? `${(bombCooldown / 1000).toFixed(1)}s` : 'READY'}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
-        )}
+        ) : currentScreen === 'zone2' ? (
+          <div id="zone2-top-stack" className={combatStarted ? 'zone2-top-stack--combat' : ''}>
+            <div id="hud" className="zone2-hud-bar">
+              <div id="balance-hud">
+                {currentWalletName && (
+                  <span className="hud-wallet-tag">{currentWalletName}</span>
+                )}
+                Balance: {balance !== null ? `${balance} WART` : 'Loading...'}
+              </div>
+              {renderHudActionButtons()}
+            </div>
 
-        {wallet?.address && (
-          <div id="address-hud" onClick={handleCopyAddress}>
-            {copied ? 'Copied!' : `Address: ${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`}
+            {wallet?.address && !combatStarted && (
+              <button
+                type="button"
+                id="zone2-address-line"
+                className={`compact-btn zone2-address-line hover:!text-[#FDB913] !mx-0 !my-0 !px-3 !py-1 font-mono${
+                  copied ? ' compact-btn--active' : ''
+                }`}
+                onClick={handleCopyAddress}
+                title={`${wallet.address} — click to copy`}
+              >
+                {copied ? 'Copied!' : formatShortAddress(wallet.address)}
+              </button>
+            )}
+
+            {combatStarted && (
+              <div id="combat-status-panel">
+                <div className="combat-status-row combat-status-row--health">
+                  <span className="combat-status-label">Health</span>
+                  <span className="combat-status-value combat-status-hearts">{'♥'.repeat(playerHealth)}</span>
+                </div>
+                {defensesDeployed && (
+                  <div className="combat-status-row combat-status-row--defense">
+                    <span className="combat-status-label">Defenses</span>
+                    <span className="combat-status-value">
+                      {defenseLoadout.turrets && (
+                        <span className="defense-pill">
+                          Turrets {combatStarted ? 'ON' : 'STAGED'}
+                        </span>
+                      )}
+                      {defenseLoadout.shield && (
+                        <span className="defense-pill">+{DEFENSE_BONUS_HEALTH} Shield</span>
+                      )}
+                    </span>
+                  </div>
+                )}
+                {bombAbility && (
+                  <div className="combat-status-row">
+                    <span className="combat-status-label">Bomb</span>
+                    <span className="combat-status-value">
+                      {bombCooldown > 0 ? `${(bombCooldown / 1000).toFixed(1)}s` : 'READY'} (B)
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+        ) : (
+          <>
+            <div id="hud">
+              <div id="balance-hud">
+                {currentWalletName && (
+                  <span className="hud-wallet-tag">{currentWalletName}</span>
+                )}
+                Balance: {balance !== null ? `${balance} WART` : 'Loading...'}
+              </div>
+              {renderHudActionButtons()}
+            </div>
+
+            {currentScreen === 'main' && (
+              <>
+                <div id="sector-hud">
+                  <span className="sector-label">SECTOR</span>
+                  <span className="sector-number">{currentRoom + 1}</span>
+                  <span className="sector-divider">/</span>
+                  <span className="sector-total">{mainRoomCount}</span>
+                </div>
+                <div id="boost-hud" className={isBoosting ? 'boost-hud--active' : ''}>
+                  {isBoosting
+                    ? 'AFTERBURNER ENGAGED'
+                    : boostCooldown > 0
+                      ? `Afterburner cooling ${(boostCooldown / 1000).toFixed(1)}s`
+                      : 'SPACE — Afterburner Ready'}
+                </div>
+              </>
+            )}
+
+            {wallet?.address && (
+              <button
+                type="button"
+                id="address-hud"
+                className={`compact-btn hover:!text-[#FDB913] !mx-0 !my-0 !px-3 !py-1 font-mono${
+                  copied ? ' compact-btn--active' : ''
+                }`}
+                onClick={handleCopyAddress}
+                title={`${wallet.address} — click to copy`}
+              >
+                {copied ? 'Copied!' : formatShortAddress(wallet.address)}
+              </button>
+            )}
+          </>
         )}
       </div>
 

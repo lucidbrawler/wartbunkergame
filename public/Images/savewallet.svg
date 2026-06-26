@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-label="Warhog neon save wallet">
+  <defs>
+    <radialGradient id="swAmbient" cx="50%" cy="44%" r="60%">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.22"/>
+      <stop offset="45%" stop-color="#ff8c00" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#fde68a" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="swGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde68a" stop-opacity="0"/>
+      <stop offset="35%" stop-color="#fbbf24" stop-opacity="0.9"/>
+      <stop offset="70%" stop-color="#ff8c00" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#fde68a" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="swAmber" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fcd34d" stop-opacity="0.25"/>
+      <stop offset="55%" stop-color="#d97706" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#92400e" stop-opacity="0.04"/>
+    </linearGradient>
+
+    <linearGradient id="swCyan" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#22d3ee" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#00e5ff" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="swCard" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde68a" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.18"/>
+    </linearGradient>
+
+    <linearGradient id="swGlass" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#b45309" stop-opacity="0.05"/>
+    </linearGradient>
+
+    <linearGradient id="swLabel" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fde68a" stop-opacity="0.5"/>
+      <stop offset="50%" stop-color="#fffbeb" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#fde68a" stop-opacity="0.5"/>
+    </linearGradient>
+
+    <radialGradient id="swDial" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fde68a" stop-opacity="0.45"/>
+      <stop offset="60%" stop-color="#f59e0b" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#fbbf24" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="swNeon" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <filter id="swSoft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <filter id="swBloom" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <ellipse cx="160" cy="116" rx="110" ry="82" fill="url(#swAmbient)"/>
+
+  <!-- energy brackets -->
+  <g filter="url(#swSoft)" opacity="0.7">
+    <path d="M40 100 L80 60" stroke="url(#swGold)" stroke-width="2" stroke-linecap="round"/>
+    <path d="M280 100 L240 60" stroke="url(#swGold)" stroke-width="2" stroke-linecap="round"/>
+    <path d="M56 88 L72 72 M264 88 L248 72" stroke="#fde68a" stroke-opacity="0.35" stroke-width="1.2" stroke-linecap="round"/>
+  </g>
+
+  <!-- holographic safe -->
+  <g filter="url(#swNeon)" opacity="0.9">
+    <rect x="96" y="62" width="128" height="122" rx="10" fill="url(#swAmber)" stroke="url(#swGold)" stroke-width="2"/>
+    <rect x="108" y="74" width="104" height="98" rx="6" fill="url(#swGlass)" stroke="#fbbf24" stroke-opacity="0.35" stroke-width="1.2"/>
+    <rect x="120" y="86" width="80" height="66" rx="4" fill="#0f172a" fill-opacity="0.12" stroke="url(#swGold)" stroke-width="1.8"/>
+  </g>
+
+  <!-- wallet card sliding in -->
+  <g filter="url(#swBloom)">
+    <rect x="132" y="102" width="56" height="38" rx="4" fill="url(#swCard)" stroke="url(#swGold)" stroke-width="2"/>
+    <path d="M140 112 H180 M140 120 H172 M140 128 H176" stroke="#78350f" stroke-opacity="0.45" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="176" cy="124" r="5" fill="#ff8c00" fill-opacity="0.5" stroke="#fde68a" stroke-opacity="0.7" stroke-width="1.2"/>
+    <rect x="132" y="102" width="56" height="38" rx="4" fill="none" stroke="#00e5ff" stroke-opacity="0.2" stroke-width="1"/>
+  </g>
+
+  <!-- download beam -->
+  <g filter="url(#swSoft)" opacity="0.85">
+    <path d="M160 44 L160 62" stroke="url(#swCyan)" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M152 54 L160 44 L168 54" fill="#22d3ee" fill-opacity="0.3" stroke="url(#swCyan)" stroke-width="1.5" stroke-linejoin="round"/>
+    <ellipse cx="160" cy="44" rx="14" ry="6" fill="#00e5ff" fill-opacity="0.08"/>
+  </g>
+
+  <!-- vault dial -->
+  <g filter="url(#swSoft)">
+    <circle cx="160" cy="168" r="20" fill="url(#swGlass)" stroke="url(#swGold)" stroke-width="2"/>
+    <circle cx="160" cy="168" r="12" fill="url(#swDial)"/>
+    <line x1="160" y1="168" x2="172" y2="160" stroke="#fde68a" stroke-opacity="0.8" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="160" cy="168" r="4" fill="#fde68a" fill-opacity="0.55"/>
+  </g>
+
+  <!-- floor glow -->
+  <ellipse cx="160" cy="196" rx="76" ry="10" fill="#fbbf24" fill-opacity="0.05" stroke="url(#swGold)" stroke-width="1" stroke-opacity="0.45"/>
+
+  <text x="248" y="98" font-family="Impact,Arial Black,sans-serif" font-size="13" fill="url(#swGold)" transform="rotate(8 248 98)" filter="url(#swSoft)">SAVE</text>
+  <text x="160" y="226" text-anchor="middle" font-family="Impact,Arial Black,sans-serif" font-size="12" fill="url(#swLabel)" letter-spacing="2" filter="url(#swSoft)">SAVE WALLET</text>
+</svg>

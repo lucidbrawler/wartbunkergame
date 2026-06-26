@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-label="Planet Beta">
+  <defs>
+    <radialGradient id="pbGlow" cx="45%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pbPlanet" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#7dd3fc"/>
+      <stop offset="55%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#0c4a6e"/>
+    </radialGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <circle cx="160" cy="112" r="70" fill="url(#pbGlow)"/>
+  <circle cx="160" cy="102" r="46" fill="url(#pbPlanet)" filter="url(#softGlow)"/>
+  <path d="M128 92 Q148 108 168 88" fill="none" stroke="#bae6fd" stroke-width="3" opacity="0.45"/>
+  <ellipse cx="160" cy="102" rx="62" ry="11" fill="none" stroke="#FDB913" stroke-width="1.5" opacity="0.5" transform="rotate(12 160 102)"/>
+  <circle cx="92" cy="74" r="5" fill="#FDB913"/>
+  <ellipse cx="160" cy="182" rx="64" ry="10" fill="#040a10" opacity="0.85"/>
+</svg>

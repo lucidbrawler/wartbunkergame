@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-label="Planet Gamma">
+  <defs>
+    <radialGradient id="pgGlow" cx="45%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#a78bfa" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#a78bfa" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pgPlanet" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#c4b5fd"/>
+      <stop offset="55%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#3b0764"/>
+    </radialGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <circle cx="160" cy="112" r="70" fill="url(#pgGlow)"/>
+  <circle cx="160" cy="102" r="46" fill="url(#pgPlanet)" filter="url(#softGlow)"/>
+  <circle cx="142" cy="90" r="8" fill="#ddd6fe" opacity="0.35"/>
+  <circle cx="176" cy="112" r="6" fill="#4c1d95" opacity="0.45"/>
+  <ellipse cx="160" cy="102" rx="60" ry="9" fill="none" stroke="#FDB913" stroke-width="1.5" opacity="0.55" transform="rotate(-8 160 102)"/>
+  <ellipse cx="160" cy="182" rx="64" ry="10" fill="#08040f" opacity="0.85"/>
+</svg>

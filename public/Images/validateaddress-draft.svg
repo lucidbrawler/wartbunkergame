@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-label="Warhog address validation outpost">
+  <defs>
+    <radialGradient id="vaGlow" cx="50%" cy="44%" r="58%">
+      <stop offset="0%" stop-color="#4ade80" stop-opacity="0.2"/>
+      <stop offset="45%" stop-color="#14532d" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#020617" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="vaScreen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <filter id="vaGlowFx" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="vaFeather" x="-25%" y="-25%" width="150%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.14 0.22" numOctaves="3" seed="12" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.8" xChannelSelector="R" yChannelSelector="G" result="warp"/>
+      <feGaussianBlur in="warp" stdDeviation="0.35" result="soft"/>
+      <feMerge><feMergeNode in="soft"/><feMergeNode in="warp"/></feMerge>
+    </filter>
+    <filter id="vaSoft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="0.45" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <ellipse cx="160" cy="120" r="108" ry="72" fill="url(#vaGlow)"/>
+
+  <!-- background trees -->
+  <g opacity="0.8">
+    <g>
+      <rect x="18" y="110" width="5" height="58" rx="1" fill="#1a1208"/>
+      <g filter="url(#vaFeather)">
+        <path d="M20 110 Q14 118 10 126 Q8 130 11 132 Q16 133 20 130 Q26 132 30 129 Q28 124 24 116 Q22 112 20 110Z" fill="#14352a"/>
+        <path d="M20 100 Q12 110 6 120 Q4 125 8 128 Q14 129 20 126 Q28 128 36 125 Q34 116 28 106 Q24 102 20 100Z" fill="#1a4d35"/>
+        <path d="M20 88 Q10 100 4 112 Q2 118 6 122 Q12 123 20 119 Q30 122 40 118 Q38 106 30 92 Q25 88 20 88Z" fill="#1e5c3e" opacity="0.9"/>
+      </g>
+      <g stroke-linecap="round" opacity="0.48" filter="url(#vaSoft)">
+        <path d="M9 129 Q7 126 9 123 M15 130 Q13 127 15 124 M25 128 Q23 125 25 122" fill="none" stroke="#3d9a62" stroke-width="0.36"/>
+      </g>
+    </g>
+    <g>
+      <rect x="42" y="120" width="4" height="48" rx="1" fill="#1a1208"/>
+      <g filter="url(#vaFeather)">
+        <path d="M44 120 Q38 126 34 132 Q32 135 36 136 Q40 137 44 134 Q50 136 56 134 Q55 129 50 122 Q47 120 44 120Z" fill="#14352a"/>
+        <path d="M44 108 Q36 118 30 126 Q28 130 32 132 Q38 133 44 130 Q52 132 60 129 Q58 120 52 110 Q48 108 44 108Z" fill="#1a4d35"/>
+      </g>
+    </g>
+    <g opacity="0.72">
+      <rect x="284" y="114" width="4.5" height="54" rx="1" fill="#1a1208"/>
+      <g filter="url(#vaFeather)">
+        <path d="M286 114 Q281 120 277 126 Q275 129 278 131 Q282 132 286 130 Q290 132 295 130 Q294 125 290 118 Q288 116 286 114Z" fill="#14352a"/>
+        <path d="M286 102 Q278 110 272 118 Q270 123 274 125 Q280 126 286 124 Q294 126 304 123 Q302 114 296 104 Q292 102 286 102Z" fill="#1a4d35"/>
+        <path d="M286 90 Q274 100 266 110 Q264 116 268 119 Q276 120 286 117 Q296 119 308 116 Q304 104 296 92 Q290 90 286 90Z" fill="#1e5c3e"/>
+      </g>
+    </g>
+    <g opacity="0.58">
+      <rect x="300" y="128" width="3" height="36" rx="1" fill="#1a1208"/>
+      <g filter="url(#vaFeather)">
+        <path d="M301 128 Q297 134 294 139 Q293 141 296 142 Q299 143 303 141 Q306 142 308 140 Q307 136 304 131 Q302 129 301 128Z" fill="#14352a"/>
+        <path d="M301 118 Q296 126 293 132 Q292 135 295 136 Q299 137 303 134 Q307 136 310 133 Q308 127 304 121 Q302 119 301 118Z" fill="#1a4d35"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- forest floor -->
+  <ellipse cx="160" cy="186" rx="124" ry="24" fill="#08110c" opacity="0.48"/>
+  <path d="M28 176 Q80 158 160 164 Q240 158 292 176 L292 220 L28 220 Z" fill="#0c1610" opacity="0.36"/>
+
+  <!-- bushes — left cluster -->
+  <g opacity="0.62" filter="url(#vaSoft)">
+    <path d="M52 172 Q48 164 54 160 Q60 158 64 162 Q68 160 72 164 Q76 162 78 168 Q74 174 66 176 Q58 178 52 172Z" fill="#1a4d35" filter="url(#vaFeather)"/>
+    <path d="M58 170 Q56 166 60 164 Q64 166 62 170Z" fill="#2d7a52" opacity="0.65"/>
+    <path d="M68 168 Q66 164 70 166 Q72 170 68 168Z" fill="#266341" opacity="0.55"/>
+    <line x1="60" y1="176" x2="58" y2="170" stroke="#2a1a0a" stroke-width="0.45"/>
+    <line x1="70" y1="175" x2="71" y2="169" stroke="#2a1a0a" stroke-width="0.4"/>
+  </g>
+  <!-- bushes — right cluster -->
+  <g opacity="0.58" filter="url(#vaSoft)">
+    <path d="M238 174 Q234 166 240 162 Q246 160 250 164 Q254 162 258 166 Q262 164 266 170 Q262 176 254 178 Q244 180 238 174Z" fill="#1a4d35" filter="url(#vaFeather)"/>
+    <path d="M244 172 Q242 168 246 166 Q250 168 248 172Z" fill="#2d7a52" opacity="0.6"/>
+    <path d="M256 170 Q254 166 258 168 Q260 172 256 170Z" fill="#3d9a62" opacity="0.5"/>
+    <line x1="246" y1="178" x2="245" y2="172" stroke="#2a1a0a" stroke-width="0.45"/>
+  </g>
+  <!-- low bushes near console -->
+  <g opacity="0.55">
+    <path d="M108 178 Q104 172 110 168 Q114 170 112 176 Q110 180 108 178Z" fill="#14352a" filter="url(#vaFeather)"/>
+    <path d="M200 178 Q196 172 202 168 Q206 170 204 176 Q202 180 200 178Z" fill="#14352a" filter="url(#vaFeather)"/>
+    <path d="M124 182 Q120 176 126 174 Q130 176 128 180 Q126 183 124 182Z" fill="#1e5c3e" filter="url(#vaFeather)" opacity="0.7"/>
+    <path d="M188 182 Q184 176 190 174 Q194 176 192 180 Q190 183 188 182Z" fill="#1e5c3e" filter="url(#vaFeather)" opacity="0.7"/>
+  </g>
+
+  <!-- validation console pedestal -->
+  <ellipse cx="160" cy="178" rx="52" ry="12" fill="#020617" opacity="0.4"/>
+  <path d="M118 168 L202 168 L198 156 L122 156 Z" fill="#1e293b" stroke="#334155" stroke-width="0.8"/>
+  <rect x="128" y="132" width="64" height="28" rx="3" fill="#334155" stroke="#475569" stroke-width="0.7"/>
+
+  <!-- main screen -->
+  <rect x="108" y="72" width="104" height="72" rx="4" fill="#1e293b" stroke="#475569" stroke-width="1.1"/>
+  <rect x="114" y="78" width="92" height="58" rx="2" fill="url(#vaScreen)" stroke="#4ade80" stroke-width="0.65" opacity="0.9"/>
+
+  <!-- hex address blocks -->
+  <rect x="122" y="88" width="22" height="10" rx="1" fill="#334155" stroke="#64748b" stroke-width="0.4"/>
+  <rect x="148" y="88" width="22" height="10" rx="1" fill="#334155" stroke="#64748b" stroke-width="0.4"/>
+  <rect x="174" y="88" width="22" height="10" rx="1" fill="#d97706" stroke="#64748b" stroke-width="0.4" opacity="0.85"/>
+  <rect x="122" y="102" width="44" height="10" rx="1" fill="#334155" stroke="#64748b" stroke-width="0.4"/>
+  <rect x="170" y="102" width="26" height="10" rx="1" fill="#22c55e" stroke="#64748b" stroke-width="0.4" opacity="0.75"/>
+  <rect x="122" y="116" width="74" height="10" rx="1" fill="#334155" stroke="#64748b" stroke-width="0.4"/>
+
+  <!-- scan line -->
+  <line x1="116" y1="96" x2="204" y2="118" stroke="#4ade80" stroke-width="0.8" opacity="0.45" filter="url(#vaGlowFx)"/>
+  <line x1="116" y1="96" x2="204" y2="118" stroke="#86efac" stroke-width="0.35" opacity="0.65"/>
+
+  <!-- valid indicator -->
+  <circle cx="128" cy="124" r="7" fill="#166534" stroke="#4ade80" stroke-width="0.7" filter="url(#vaGlowFx)"/>
+  <path d="M124 124 L127 127 L133 121" fill="none" stroke="#86efac" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- magnifier -->
+  <circle cx="196" cy="108" r="14" fill="none" stroke="#d97706" stroke-width="1.4" opacity="0.85"/>
+  <circle cx="196" cy="108" r="9" fill="#0f172a" stroke="#38bdf8" stroke-width="0.65" opacity="0.9"/>
+  <line x1="206" y1="118" x2="218" y2="130" stroke="#475569" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="206" y1="118" x2="218" y2="130" stroke="#94a3b8" stroke-width="1" stroke-linecap="round"/>
+
+  <!-- status lamp -->
+  <circle cx="112" cy="80" r="2" fill="#4ade80" filter="url(#vaGlowFx)" opacity="0.8"/>
+
+  <!-- foreground trees -->
+  <g>
+    <rect x="64" y="150" width="6" height="36" rx="1.5" fill="#1a1208"/>
+    <g filter="url(#vaFeather)">
+      <path d="M67 150 Q52 166 48 172 Q54 174 67 170 Q80 174 86 172 Q82 164 74 154 Q70 150 67 150Z" fill="#14352a"/>
+      <path d="M67 136 Q48 154 42 162 Q50 166 67 162 Q84 166 92 162 Q86 148 76 138 Q71 134 67 136Z" fill="#1a4d35"/>
+      <path d="M67 122 Q42 142 36 158 Q46 162 67 156 Q88 162 98 158 Q90 138 78 126 Q72 122 67 122Z" fill="#1e5c3e" opacity="0.92"/>
+    </g>
+    <g stroke-linecap="round" opacity="0.52" filter="url(#vaSoft)">
+      <path d="M50 170 Q48 167 50 164 M62 171 Q60 168 62 165 M74 169 Q72 166 74 163" fill="none" stroke="#3d9a62" stroke-width="0.4"/>
+      <path d="M44 156 Q42 153 44 150 M58 154 Q56 151 58 148 M72 150 Q70 147 72 144" fill="none" stroke="#2d7a52" stroke-width="0.36"/>
+    </g>
+  </g>
+  <g opacity="0.88">
+    <rect x="274" y="154" width="5" height="32" rx="1" fill="#1a1208"/>
+    <g filter="url(#vaFeather)">
+      <path d="M276 154 Q266 168 262 172 Q268 174 276 170 Q284 174 290 172 Q286 164 282 158 Q279 154 276 154Z" fill="#14352a"/>
+      <path d="M276 142 Q264 156 258 162 Q266 166 276 162 Q286 166 294 162 Q288 148 282 140 Q279 142 276 142Z" fill="#1a4d35"/>
+      <path d="M276 128 Q260 146 254 156 Q264 160 276 156 Q290 160 300 156 Q292 138 284 130 Q280 128 276 128Z" fill="#1e5c3e"/>
+    </g>
+    <g stroke-linecap="round" opacity="0.48" filter="url(#vaSoft)">
+      <path d="M264 170 Q262 167 264 164 M274 169 Q272 166 274 163 M286 167 Q284 164 286 161" fill="none" stroke="#3d9a62" stroke-width="0.38"/>
+    </g>
+  </g>
+
+  <!-- front bush pair -->
+  <g opacity="0.7" filter="url(#vaSoft)">
+    <path d="M88 184 Q82 176 90 172 Q96 174 94 180 Q90 186 88 184Z" fill="#1a4d35" filter="url(#vaFeather)"/>
+    <path d="M224 184 Q218 176 226 172 Q232 174 230 180 Q226 186 224 184Z" fill="#1a4d35" filter="url(#vaFeather)"/>
+    <path d="M96 186 Q92 180 100 178 Q104 182 100 186 Q98 188 96 186Z" fill="#2d7a52" opacity="0.55" filter="url(#vaFeather)"/>
+    <path d="M216 186 Q212 180 220 178 Q224 182 220 186 Q218 188 216 186Z" fill="#2d7a52" opacity="0.55" filter="url(#vaFeather)"/>
+  </g>
+</svg>

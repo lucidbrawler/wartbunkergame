@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-label="Send transaction">
+  <defs>
+    <radialGradient id="txGlow" cx="50%" cy="48%" r="58%">
+      <stop offset="0%" stop-color="#FDB913" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#FDB913" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="txPanel" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a3a4a"/>
+      <stop offset="100%" stop-color="#0d1f2a"/>
+    </linearGradient>
+    <linearGradient id="goldLight" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FDB913"/>
+      <stop offset="100%" stop-color="#ff8c00"/>
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <circle cx="160" cy="120" r="78" fill="url(#txGlow)"/>
+  <rect x="88" y="72" width="144" height="96" rx="10" fill="url(#txPanel)" stroke="#38bdf8" stroke-width="2" filter="url(#softGlow)"/>
+  <rect x="98" y="82" width="124" height="76" rx="6" fill="#061018"/>
+  <path d="M118 118 H202" stroke="#22d3ee" stroke-width="2" opacity="0.5"/>
+  <circle cx="132" cy="118" r="14" fill="none" stroke="url(#goldLight)" stroke-width="2"/>
+  <path d="M126 118 L130 122 L138 114" fill="none" stroke="#FDB913" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="178,108 202,118 178,128" fill="#38bdf8"/>
+  <rect x="118" y="142" width="88" height="8" rx="2" fill="#1e293b" stroke="#64748b" stroke-width="1"/>
+  <ellipse cx="160" cy="188" rx="72" ry="12" fill="#060d14" opacity="0.85"/>
+  <rect x="108" y="168" width="104" height="18" rx="5" fill="#12243a" stroke="#FDB913" stroke-width="1.5"/>
+</svg>

@@ -19,6 +19,8 @@ import AssetPriceChart from './AssetPriceChart.jsx';
 import { DEFAULT_NODE_URL } from '../utils/presetNodes.js';
 
 const AssetCardWithChart = ({ asset, isCompact, selectedNode, onCopyHash, chartPriority = false }) => {
+  const { wallet, watchedAssets, addWatchedAsset } = useWallet();
+  const toast = useToast();
   const chartSectionRef = useRef(null);
   const [chartVisible, setChartVisible] = useState(chartPriority);
   const [chartLoading, setChartLoading] = useState(false);
@@ -171,6 +173,17 @@ const AssetCardWithChart = ({ asset, isCompact, selectedNode, onCopyHash, chartP
 
   const supply = asset.totalSupply?.str || '0';
   const hash = asset.hash || '';
+  const isTracked = watchedAssets.some((w) => w.hash.toLowerCase() === hash.toLowerCase());
+
+  const handleTrackAsset = () => {
+    if (!wallet?.address) {
+      toast.error('Connect a wallet to track tokens');
+      return;
+    }
+    if (isTracked) return;
+    addWatchedAsset(hash, asset.name || '');
+    toast.success(`${asset.name || 'Token'} added to your wallet`);
+  };
 
   return (
     <div className="w-full bg-zinc-950 border border-zinc-700 rounded-2xl overflow-hidden">
@@ -227,15 +240,36 @@ const AssetCardWithChart = ({ asset, isCompact, selectedNode, onCopyHash, chartP
           )}
         </div>
 
-        <div className="mt-4 pt-3 border-t border-zinc-700 text-xs text-zinc-400 flex items-center justify-between gap-2">
+        <div className="mt-4 pt-3 border-t border-zinc-700 text-xs text-zinc-400 flex items-center justify-between gap-2 flex-wrap">
           <span>Created on-chain</span>
-          <button
-            type="button"
-            onClick={() => onCopyHash(hash)}
-            className="compact-btn text-blue-400 hover:!text-blue-300"
-          >
-            Copy Full Hash
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleTrackAsset}
+              disabled={isTracked}
+              className={`compact-btn !mx-0 !my-0 !px-3 !py-1 whitespace-nowrap ${
+                isTracked
+                  ? 'text-emerald-400 cursor-default opacity-80'
+                  : 'hover:!text-[#FDB913]'
+              }`}
+              title={
+                isTracked
+                  ? 'Already in your wallet'
+                  : wallet?.address
+                    ? 'Add to tracked tokens'
+                    : 'Log in to track this token'
+              }
+            >
+              {isTracked ? '✓ Tracked' : '+ Track in Wallet'}
+            </button>
+            <button
+              type="button"
+              onClick={() => onCopyHash(hash)}
+              className="compact-btn text-blue-400 hover:!text-blue-300"
+            >
+              Copy Full Hash
+            </button>
+          </div>
         </div>
       </div>
 
@@ -492,7 +526,7 @@ const AssetPage = ({ selectedNode: propSelectedNode, wallet: propWallet }) => {
   return (
     <div className="space-y-8">
       <h2 className="text-3xl font-bold">Asset Tools</h2>
-      <p className="mb-6 text-gray-600 dark:text-gray-400">
+      <p className="defi-page-intro">
         Create, search, and look up assets on the DeFi testnet. Send assets from the Send tab.
       </p>
 

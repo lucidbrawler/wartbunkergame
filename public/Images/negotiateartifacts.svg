@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-label="Negotiate artifacts">
+  <defs>
+    <radialGradient id="artGlow" cx="50%" cy="48%" r="58%">
+      <stop offset="0%" stop-color="#c084fc" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#c084fc" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="goldLight" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FDB913"/>
+      <stop offset="100%" stop-color="#ff8c00"/>
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <circle cx="160" cy="118" r="74" fill="url(#artGlow)"/>
+  <path d="M160 54 L188 96 L176 148 L144 148 L132 96 Z" fill="#1e1030" stroke="#a78bfa" stroke-width="2" filter="url(#softGlow)"/>
+  <path d="M160 68 L176 96 L168 132 L152 132 L144 96 Z" fill="#2e1065" stroke="#c084fc" stroke-width="1.5"/>
+  <circle cx="160" cy="102" r="10" fill="url(#goldLight)" opacity="0.9"/>
+  <rect x="108" y="156" width="104" height="24" rx="6" fill="#120a1c" stroke="#a78bfa" stroke-width="1.5"/>
+  <circle cx="128" cy="168" r="4" fill="#22d3ee"/>
+  <circle cx="160" cy="168" r="4" fill="#FDB913"/>
+  <circle cx="192" cy="168" r="4" fill="#22d3ee"/>
+  <ellipse cx="160" cy="188" rx="68" ry="11" fill="#08040c" opacity="0.9"/>
+</svg>

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-label="Warhog tx blast comic">
+  <defs>
+    <pattern id="dots" width="5" height="5" patternUnits="userSpaceOnUse">
+      <circle cx="1.5" cy="1.5" r="1" fill="#7c2d12" opacity="0.45"/>
+    </pattern>
+  </defs>
+  <rect width="320" height="240" fill="#120a18"/>
+  <ellipse cx="160" cy="200" rx="110" ry="16" fill="#020617"/>
+
+  <!-- bunker tube -->
+  <path d="M96 168 L96 120 Q96 96 160 84 Q224 96 224 120 L224 168 Z" fill="#334155" stroke="#020617" stroke-width="3"/>
+  <path d="M108 168 L112 124 Q112 104 160 96 Q208 104 208 124 L212 168 Z" fill="url(#dots)"/>
+
+  <!-- launched tx capsule -->
+  <g>
+    <path d="M148 72 L172 72 L178 96 L142 96 Z" fill="#FDB913" stroke="#020617" stroke-width="2.5"/>
+    <rect x="150" y="76" width="20" height="12" rx="2" fill="#0f172a" stroke="#00e5ff" stroke-width="1.5"/>
+    <path d="M160 56 L154 72 L166 72 Z" fill="#ff6b2c" stroke="#020617" stroke-width="2"/>
+    <!-- speed lines -->
+    <path d="M130 88 L90 100 M128 96 L84 112 M132 104 L94 124" stroke="#00e5ff" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+    <path d="M190 88 L230 100 M192 96 L236 112 M188 104 L226 124" stroke="#00e5ff" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+    <path d="M160 48 L160 20 M148 32 L160 20 L172 32" stroke="#FDB913" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+
+  <!-- flame burst from tube -->
+  <path d="M136 168 Q160 196 184 168 Q172 188 160 204 Q148 188 136 168 Z" fill="#ff6b2c" stroke="#020617" stroke-width="2"/>
+  <path d="M148 168 Q160 184 172 168 Q166 178 160 188 Q154 178 148 168 Z" fill="#FDB913"/>
+
+  <!-- warhog nose on capsule -->
+  <ellipse cx="160" cy="66" rx="5" ry="4" fill="#1a1004"/>
+  <path d="M156 68 C158 72 162 72 164 68" stroke="#020617" stroke-width="1.2" fill="none"/>
+
+  <text x="248" y="56" font-family="Impact,Arial Black,sans-serif" font-size="18" fill="#00e5ff" transform="rotate(-12 248 56)">ZAP!</text>
+  <text x="72" y="148" font-family="Impact,Arial Black,sans-serif" font-size="10" fill="#FDB913" letter-spacing="1">SEND TX</text>
+</svg>
