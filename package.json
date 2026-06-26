@@ -44,6 +44,6 @@
     "stream-browserify": "^3.0.0",
     "tailwindcss": "^3.4.13",
     "vm-browserify": "^1.1.2",
-    "warthog-js": "file:../../warthog-js"
+    "warthog-js": "github:warthog-network/warthog-js#dev"
   }
 }
