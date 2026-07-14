@@ -614,6 +614,19 @@
     inset 0 0 50px rgba(0, 0, 0, 0.5);
 }
 
+#game-container.zone1.astrohog-active {
+  overflow: hidden;
+  min-height: 560px;
+}
+
+@media (max-width: 768px) {
+  #game-container.zone1.astrohog-active {
+    height: 70vh;
+    min-height: 460px;
+    max-height: none;
+  }
+}
+
 @media (min-width: 1024px) {
   #game-container {
     height: 78vh;
@@ -1407,6 +1420,13 @@
   max-width: 90%;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Co-op sits below sector counter on the main map (desktop) */
+@media (min-width: 769px) {
+  #game-container.main .coop-panel {
+    top: 52px;
+  }
 }
 
 #sector-hud {

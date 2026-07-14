@@ -41,8 +41,21 @@ npm run dev
 - Space Station easy interaction (larger area)
 - Seamless zone loading with player
 
+## Astro-Hog Explore (zone1)
+- Tile RPG overworld: `src/components/AstroHogExplore.jsx` + `.css`
+- Chest vault: `src/utils/chestVault.js`
+- On-chain DeFi escrow: `src/utils/chestEscrow.js`
+- Mobile: left thumb stick + A (interact) / B (codes / cancel)
+- Desktop: WASD, Z/E/Space = A, X = B
+- **DeFi testnet mode** (node includes defitestnet / preset testnets):
+  - Top bar shows chain balance; bury funds real WART into puzzle-locked escrow
+  - Share portable `AH1.…` codes for cross-browser claims
+  - One-click **DEFI NET** switches to `https://warthog-defitestnet.duckdns.org`
+- Offline mode: Stardust pouch + seeded `HOG-SEED` / `HOG-MOON`
+
 ## Todo
+- Optional: server-synced global chest registry (cross-browser multiplayer)
+- On-chain escrow for real WART (currently in-game Stardust WART pouch)
 - More story branches per zone
-- Wallet integration in story (e.g., balance requirements for choices)
 
 Copy this overview to other Grok instances for context.

@@ -21,6 +21,7 @@ import {
 } from '../utils/warthogWallet.js';
 import {
   formatWartBalance,
+  parseAccountWartBalance,
   validateWarthogAddressInput,
   getNextNonceFromAccount,
 } from '../utils/warthogFormat.js';
@@ -47,6 +48,9 @@ const useWallet = () => {
   const [walletData, setWalletData] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [balance, setBalance] = useState(null);
+  /** Spendable WART (total − locked) when the node reports locks. */
+  const [availableBalance, setAvailableBalance] = useState(null);
+  const [lockedBalance, setLockedBalance] = useState(null);
   const [usdBalance, setUsdBalance] = useState(null);
   const [nonceId, setNonceId] = useState(null);
   const [pinHeight, setPinHeight] = useState(null);
@@ -182,6 +186,8 @@ const useWallet = () => {
   const fetchBalanceAndNonce = async (walletAddress) => {
     setError(null);
     setBalance(null);
+    setAvailableBalance(null);
+    setLockedBalance(null);
     setNonceId(null);
     setPinHeight(null);
     setPinHash(null);
@@ -198,25 +204,32 @@ const useWallet = () => {
       setPinHeight(headPinHeight);
       setPinHash(headPinHash);
 
-      const balRes = isMainnetNode(selectedNode)
+      // Prefer DeFi wart_balance; fall back to mainnet /balance if needed
+      let balRes = isMainnetNode(selectedNode)
         ? await api.getAccountBalance(walletAddress)
         : await api.getAccountWartBalance(walletAddress);
+
+      if (!balRes.success && !isMainnetNode(selectedNode)) {
+        balRes = await api.getAccountBalance(walletAddress);
+      } else if (!balRes.success && isMainnetNode(selectedNode)) {
+        balRes = await api.getAccountWartBalance(walletAddress);
+      }
+
       if (!balRes.success) {
         throw new Error(balRes.error || 'Failed to fetch balance');
       }
       const data = balRes.data;
+      const parsed = await parseAccountWartBalance(data);
 
-      const wartBalanceObj = isMainnetNode(selectedNode)
-        ? data?.balance?.total
-        : data?.wart?.total;
-
-      const balanceInWart = await formatWartBalance(wartBalanceObj);
-      setBalance(balanceInWart);
+      // Surface total for compatibility; available for spendable sends
+      setBalance(parsed.total);
+      setAvailableBalance(parsed.available);
+      setLockedBalance(parsed.locked);
 
       try {
         const priceResponse = await axios.get('/api/price');
         const price = priceResponse.data?.usd || 0;
-        setUsdBalance((parseFloat(balanceInWart) * price).toFixed(2));
+        setUsdBalance((parseFloat(parsed.total) * price).toFixed(2));
       } catch {
         setUsdBalance('N/A');
       }
@@ -224,7 +237,10 @@ const useWallet = () => {
       if (isMainnetNode(selectedNode)) {
         setNonceId(await getNextNonceFromAccount(data));
       } else {
-        setNonceId(0);
+        const n = data?.nonceId ?? data?.nonce ?? data?.account?.nonceId;
+        setNonceId(
+          n != null && Number.isFinite(Number(n)) ? Number(n) + 1 : 0,
+        );
       }
     } catch (err) {
       setError(err.message || 'Could not fetch chain head or balance');
@@ -574,6 +590,8 @@ const useWallet = () => {
     walletData,
     wallet,
     balance,
+    availableBalance,
+    lockedBalance,
     usdBalance,
     nonceId,
     pinHeight,

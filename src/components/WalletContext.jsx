@@ -46,6 +46,8 @@ export function GameWalletProvider({ children, walletHook }) {
     nonceId,
     selectedNode,
     balance,
+    availableBalance,
+    lockedBalance,
     usdBalance,
     fetchBalanceAndNonce,
     isDefiNode,
@@ -59,6 +61,7 @@ export function GameWalletProvider({ children, walletHook }) {
     saveNamedWallet,
     logoutWallet,
     registerAutoLockCallback,
+    setSelectedNode,
   } = walletHook;
 
   const [dexPoolPrefill, setDexPoolPrefill] = useState(null);
@@ -211,6 +214,8 @@ export function GameWalletProvider({ children, walletHook }) {
     nextNonce: nonceId ?? 0,
     selectedNode,
     balance,
+    availableBalance,
+    lockedBalance,
     usdBalance,
     isSigningUnlocked,
     isSessionLocked,
@@ -238,6 +243,7 @@ export function GameWalletProvider({ children, walletHook }) {
     saveNamedWallet,
     logoutWallet,
     registerAutoLockCallback,
+    applyNode: setSelectedNode,
     refreshBalance: () => {
       if (wallet?.address) fetchBalanceAndNonce(wallet.address);
     },
@@ -246,6 +252,8 @@ export function GameWalletProvider({ children, walletHook }) {
     nonceId,
     selectedNode,
     balance,
+    availableBalance,
+    lockedBalance,
     usdBalance,
     isSigningUnlocked,
     isSessionLocked,
@@ -269,6 +277,7 @@ export function GameWalletProvider({ children, walletHook }) {
     saveNamedWallet,
     logoutWallet,
     registerAutoLockCallback,
+    setSelectedNode,
     fetchBalanceAndNonce,
   ]);
 

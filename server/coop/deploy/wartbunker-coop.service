@@ -1,0 +1,17 @@
+[Unit]
+Description=Wart Bunker co-op WebSocket server
+After=network.target
+
+[Service]
+Type=simple
+User=warthog
+Group=warthog
+WorkingDirectory=/opt/wartbunker-coop
+ExecStart=/opt/wartbunker-coop/coop-server
+Environment=COOP_BIND=127.0.0.1
+Environment=COOP_PORT=8765
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

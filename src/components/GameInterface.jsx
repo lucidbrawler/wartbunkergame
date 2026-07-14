@@ -4,9 +4,13 @@
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import './GameInterface.css';
+import './CoopPanel.css';
 import SpaceStation from './SpaceStation';
+import CoopPanel from './CoopPanel';
+import AstroHogExplore from './AstroHogExplore';
 import { useWallet } from './WalletContext';
 import { useToast } from './Toast';
+import { useCoopSession } from '../hooks/useCoopSession.js';
 
 function getMainRooms(isDefi, hasWallet) {
   const rooms = [
@@ -138,6 +142,18 @@ const GameInterface = ({
 }) => {
   const { lockWallet } = useWallet();
   const toast = useToast();
+  const coop = useCoopSession({
+    name: currentWalletName || 'Pilot',
+    address: wallet?.address || '',
+  });
+  const publishCoopStateRef = useRef(coop.publishState);
+  const coopInRoomRef = useRef(coop.isInRoom);
+  const coopPartnerRef = useRef(coop.partner);
+  const partnerRef = useRef(null);
+  publishCoopStateRef.current = coop.publishState;
+  coopInRoomRef.current = coop.isInRoom;
+  coopPartnerRef.current = coop.partner;
+
   const mainRooms = useMemo(
     () => getMainRooms(isDefiNode, !!wallet),
     [isDefiNode, wallet],
@@ -429,33 +445,35 @@ const GameInterface = ({
         setBoostCooldown((prev) => (prev !== roundedCooldown ? roundedCooldown : prev));
       }
 
-      // Player movement
-      let dx = 0;
-      let dy = 0;
-      if (keys.current['a'] || keys.current['arrowleft']) dx -= 1;
-      if (keys.current['d'] || keys.current['arrowright']) dx += 1;
-      if (keys.current['w'] || keys.current['arrowup']) dy -= 1;
-      if (keys.current['s'] || keys.current['arrowdown']) dy += 1;
+      // Player movement (skip while Astro-Hog explore owns input)
+      if (currentScreen !== 'zone1') {
+        let dx = 0;
+        let dy = 0;
+        if (keys.current['a'] || keys.current['arrowleft']) dx -= 1;
+        if (keys.current['d'] || keys.current['arrowright']) dx += 1;
+        if (keys.current['w'] || keys.current['arrowup']) dy -= 1;
+        if (keys.current['s'] || keys.current['arrowdown']) dy += 1;
 
-      if (dx !== 0 && dy !== 0) {
-        const mag = Math.sqrt(dx * dx + dy * dy);
-        dx /= mag;
-        dy /= mag;
+        if (dx !== 0 && dy !== 0) {
+          const mag = Math.sqrt(dx * dx + dy * dy);
+          dx /= mag;
+          dy /= mag;
+        }
+
+        positionRef.current.x += speed * dx;
+        positionRef.current.y += speed * dy;
+        positionRef.current.x += speed * joystickVectorRef.current.x;
+        positionRef.current.y += speed * joystickVectorRef.current.y;
+
+        // Boundary checking
+        if (positionRef.current.x < 0) positionRef.current.x = 0;
+        if (positionRef.current.x > containerWidth - 40) positionRef.current.x = containerWidth - 40;
+        if (positionRef.current.y < 0) positionRef.current.y = 0;
+        if (positionRef.current.y > containerHeight - 40) positionRef.current.y = containerHeight - 40;
+
+        playerRef.current.style.left = `${positionRef.current.x}px`;
+        playerRef.current.style.top = `${positionRef.current.y}px`;
       }
-
-      positionRef.current.x += speed * dx;
-      positionRef.current.y += speed * dy;
-      positionRef.current.x += speed * joystickVectorRef.current.x;
-      positionRef.current.y += speed * joystickVectorRef.current.y;
-
-      // Boundary checking
-      if (positionRef.current.x < 0) positionRef.current.x = 0;
-      if (positionRef.current.x > containerWidth - 40) positionRef.current.x = containerWidth - 40;
-      if (positionRef.current.y < 0) positionRef.current.y = 0;
-      if (positionRef.current.y > containerHeight - 40) positionRef.current.y = containerHeight - 40;
-
-      playerRef.current.style.left = `${positionRef.current.x}px`;
-      playerRef.current.style.top = `${positionRef.current.y}px`;
 
       const combatActive =
         currentScreen === 'zone2' && combatStarted && playerHealth > 0;
@@ -645,6 +663,29 @@ const GameInterface = ({
 
       if (currentScreen === 'main') {
         handleRoomNavigation();
+      }
+
+      const coopPartner = coopPartnerRef.current;
+      if (coopInRoomRef.current) {
+        publishCoopStateRef.current({
+          x: positionRef.current.x,
+          y: positionRef.current.y,
+          room: currentRoom,
+          screen: currentScreen,
+          boosting: currentScreen === 'main' && now < boostUntilRef.current,
+        });
+      }
+
+      if (partnerRef.current && coopPartner) {
+        const sameSpace =
+          coopPartner.screen === currentScreen &&
+          (currentScreen !== 'main' || coopPartner.room === currentRoom);
+        partnerRef.current.style.display = sameSpace ? 'block' : 'none';
+        if (sameSpace) {
+          partnerRef.current.style.left = `${coopPartner.x}px`;
+          partnerRef.current.style.top = `${coopPartner.y}px`;
+          partnerRef.current.classList.toggle('coop-partner--boosting', Boolean(coopPartner.boosting));
+        }
       }
 
       frameId = requestAnimationFrame(gameLoop);
@@ -1286,8 +1327,8 @@ const GameInterface = ({
 
   return (
     <>
-      {/* Instructions outside the game area - hidden during waves */}
-      {currentScreen !== 'zone2' && (
+      {/* Instructions outside the game area - hidden during waves / astro-hog */}
+      {currentScreen !== 'zone2' && currentScreen !== 'zone1' && (
         <div className="game-instructions">
           <div className="instruction-text">
             {isMobile ? (
@@ -1298,9 +1339,20 @@ const GameInterface = ({
           </div>
         </div>
       )}
+      {currentScreen === 'zone1' && (
+        <div className="game-instructions">
+          <div className="instruction-text">
+            {isMobile ? (
+              <>Astro-Hog: thumb stick · A interact · B codes / cancel · bury WART in puzzle chests</>
+            ) : (
+              <>Astro-Hog Explore: WASD move · Z/E/Space = A · X = B (codes) · seal Stardust WART in constellation chests</>
+            )}
+          </div>
+        </div>
+      )}
 
-      {/* Mobile Controls */}
-      {isMobile && (
+      {/* Mobile Controls (main + combat only — explore has its own GB stick + A/B) */}
+      {isMobile && currentScreen !== 'zone1' && (
         <>
           {currentScreen === 'main' && (
             <div className="mobile-controls">
@@ -1354,7 +1406,7 @@ const GameInterface = ({
       <div
         id="game-container"
         ref={gameContainerRef}
-        className={`${currentScreen}${currentScreen === 'zone2' && combatStarted ? ' combat-active' : ''}${currentScreen === 'zone2' && defenseLoadout.turrets && !combatStarted ? ' turret-placement' : ''}`}
+        className={`${currentScreen}${currentScreen === 'zone1' ? ' astrohog-active' : ''}${currentScreen === 'zone2' && combatStarted ? ' combat-active' : ''}${currentScreen === 'zone2' && defenseLoadout.turrets && !combatStarted ? ' turret-placement' : ''}`}
         onClick={handleTurretPlacement}
       >
         {/* Game Background Elements */}
@@ -1380,13 +1432,43 @@ const GameInterface = ({
           ref={playerRef}
           className={currentScreen === 'main' && isBoosting ? 'player-boosting' : ''}
         ></div>
+
+        {coop.isInRoom && (
+          <div
+            id="coop-partner"
+            ref={partnerRef}
+            data-label={coop.partner?.name?.slice(0, 8) || 'Partner'}
+            style={{ display: 'none' }}
+          />
+        )}
+
+        <CoopPanel
+          status={coop.status}
+          roomCode={coop.roomCode}
+          partner={coop.partner}
+          error={coop.error}
+          isInRoom={coop.isInRoom}
+          onCreateRoom={coop.createRoom}
+          onJoinRoom={coop.joinRoom}
+          onLeaveRoom={coop.leaveRoom}
+        />
         
-        {/* Joystick visuals */}
-        {isMobile && (
+        {/* Joystick visuals (not used in Astro-Hog — it has its own stick) */}
+        {isMobile && currentScreen !== 'zone1' && (
           <>
             <div className="joystick-base" ref={baseRef} />
             <div className="joystick-thumb" ref={thumbRef} />
           </>
+        )}
+
+        {/* Astro-Hog Explore — Game Boy style overworld (zone 1) */}
+        {currentScreen === 'zone1' && (
+          <AstroHogExplore
+            isMobile={isMobile}
+            walletName={currentWalletName || 'Pilot'}
+            walletAddress={wallet?.address || ''}
+            onExit={() => setCurrentScreen('main')}
+          />
         )}
         
         {/* MAIN COUNTERS — one station per sector */}
@@ -1431,8 +1513,8 @@ const GameInterface = ({
           </>
         )}
 
-        {/* ZONE COUNTERS */}
-        {(currentScreen === 'zone1' || currentScreen === 'zone2' || currentScreen === 'zone3') && (
+        {/* ZONE COUNTERS (zone1 uses AstroHogExplore instead) */}
+        {(currentScreen === 'zone2' || currentScreen === 'zone3') && (
           <SpaceStation
             currentScreen={currentScreen}
             setCurrentScreen={setCurrentScreen}

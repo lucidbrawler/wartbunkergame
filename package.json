@@ -6,7 +6,9 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "coop-server": "cd server/coop && ../../.tools/go/bin/go run .",
+    "dev:all": "npm run coop-server & npm run dev"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.4",

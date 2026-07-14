@@ -2,6 +2,7 @@ import { normalizeNodeUrl } from './warthogClient.js';
 
 /** Preset DeFi testnet nodes shown in the Node Selection dropdown. */
 export const PRESET_NODES = [
+  { url: 'http://217.216.94.146:3001', name: 'DeFi VPS' },
   { url: 'http://65.87.7.86:3002', name: 'Testnet 1' },
   { url: 'http://104.251.219.14:3001', name: 'Testnet 2' },
   { url: 'http://85.56.145.106:3001', name: 'Testnet 3' },

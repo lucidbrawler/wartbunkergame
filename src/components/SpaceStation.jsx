@@ -43,10 +43,7 @@ const SpaceStation = ({
   const getStoryText = () => {
     const progress = zoneProgress[currentScreen] || 0;
     if (currentScreen === 'zone1') {
-      if (progress === 0) return "You launch into the Exploration Zone, a vast expanse of uncharted space. Your mission: discover new worlds and resources for the colony.";
-      if (progress === 1) return "Scanning complete! You detect three promising planets nearby.";
-      if (progress === 2) return "You've made progress in your exploration. Resources gathered: 150 WART worth of minerals.";
-      return "Exploration complete! You've expanded the colony's knowledge of the galaxy.";
+      return "Astro-Hog Explore: roam Crater Ridge, dig crystals, and seal Stardust WART in puzzle chests for other pilots.";
     } else if (currentScreen === 'zone2') {
       if (progress === 0 && !combatStarted) {
         if (defenseMenuOpen) {
@@ -82,8 +79,8 @@ const SpaceStation = ({
         <h1>Choose Your Zone</h1>
         <div className="zone-buttons">
           <button className="zone-btn" onClick={() => setCurrentScreen('zone1')}>
-            <h2>Exploration Zone</h2>
-            <p>Discover new planets and resources</p>
+            <h2>Astro-Hog Explore</h2>
+            <p>Game Boy–style moon trek · bury WART in puzzle chests</p>
           </button>
           <button className="zone-btn" onClick={() => setCurrentScreen('zone2')}>
             <h2>Combat Zone</h2>
@@ -101,59 +98,7 @@ const SpaceStation = ({
 
   return (
     <>
-      {/* Zone 1 counters */}
-      {currentScreen === 'zone1' && (() => {
-        const progress = zoneProgress.zone1;
-        if (progress === 0) return (
-          <>
-            <div
-              className={`counter ${hoveredCounter === 'scan-planets' ? 'interaction-zone' : ''}`}
-              id="scan-planets"
-              style={{ left: '18%', top: '38%' }}
-              onClick={() => handleZoneAction('zone1', 'scan')}
-            >
-              <div className="sign-center">Scan Planets</div>
-            </div>
-            <div
-              className={`counter ${hoveredCounter === 'check-ship' ? 'interaction-zone' : ''}`}
-              id="check-ship"
-              style={{ left: '68%', top: '38%' }}
-              onClick={() => handleZoneAction('zone1', 'check_ship')}
-            >
-              <div className="sign-center">Check Ship</div>
-            </div>
-          </>
-        );
-        if (progress === 1) return (
-          <>
-            <div
-              className={`counter ${hoveredCounter === 'planet-alpha' ? 'interaction-zone' : ''}`}
-              id="planet-alpha"
-              style={{ left: '12%', top: '52%' }}
-              onClick={() => handleZoneAction('zone1', 'planet_alpha')}
-            >
-              <div className="sign-left">Planet Alpha</div>
-            </div>
-            <div
-              className={`counter ${hoveredCounter === 'planet-beta' ? 'interaction-zone' : ''}`}
-              id="planet-beta"
-              style={{ left: '45%', top: '35%' }}
-              onClick={() => handleZoneAction('zone1', 'planet_beta')}
-            >
-              <div className="sign-center">Planet Beta</div>
-            </div>
-            <div
-              className={`counter ${hoveredCounter === 'planet-gamma' ? 'interaction-zone' : ''}`}
-              id="planet-gamma"
-              style={{ left: '78%', top: '52%' }}
-              onClick={() => handleZoneAction('zone1', 'planet_gamma')}
-            >
-              <div className="sign-right">Planet Gamma</div>
-            </div>
-          </>
-        );
-        return null;
-      })()}
+      {/* Zone 1 is AstroHogExplore (mounted from GameInterface) */}
 
       {/* Zone 2 pre-combat counters */}
       {currentScreen === 'zone2' && zoneProgress.zone2 === 0 && !combatStarted && (
